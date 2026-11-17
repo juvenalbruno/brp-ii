@@ -1,0 +1,25 @@
+{
+  "instancia": "brp_W7_H7_N22_id01",
+  "arquivo": "brp_W7_H7_N22.json",
+  "id": 1,
+  "metodo": "min_max",
+  "W": 7,
+  "H": 7,
+  "N": 22,
+  "relocacoes": 7,
+  "num_movimentos": 7,
+  "retiradas": 22,
+  "operacoes_totais": 29,
+  "tempo_cpu_s": 0.000006000,
+  "tempo_parede_s": 0.000007375,
+  "sequencia": [[6, 4], [2, 3], [7, 4], [7, 5], [7, 3], [3, 1], [3, 4]],
+  "movimentos": [
+    {"bloco": 22, "origem": 6, "destino": 4, "periodo": 2},
+    {"bloco": 12, "origem": 2, "destino": 3, "periodo": 4},
+    {"bloco": 21, "origem": 7, "destino": 4, "periodo": 5},
+    {"bloco": 7, "origem": 7, "destino": 5, "periodo": 6},
+    {"bloco": 11, "origem": 7, "destino": 3, "periodo": 6},
+    {"bloco": 18, "origem": 3, "destino": 1, "periodo": 16},
+    {"bloco": 20, "origem": 3, "destino": 4, "periodo": 16}
+  ]
+}

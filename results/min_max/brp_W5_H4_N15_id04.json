@@ -1,0 +1,24 @@
+{
+  "instancia": "brp_W5_H4_N15_id04",
+  "arquivo": "brp_W5_H4_N15.json",
+  "id": 4,
+  "metodo": "min_max",
+  "W": 5,
+  "H": 4,
+  "N": 15,
+  "relocacoes": 6,
+  "num_movimentos": 6,
+  "retiradas": 15,
+  "operacoes_totais": 21,
+  "tempo_cpu_s": 0.000006000,
+  "tempo_parede_s": 0.000007250,
+  "sequencia": [[2, 4], [3, 4], [3, 1], [1, 2], [4, 3], [4, 5]],
+  "movimentos": [
+    {"bloco": 14, "origem": 2, "destino": 4, "periodo": 1},
+    {"bloco": 13, "origem": 3, "destino": 4, "periodo": 4},
+    {"bloco": 10, "origem": 3, "destino": 1, "periodo": 4},
+    {"bloco": 10, "origem": 1, "destino": 2, "periodo": 8},
+    {"bloco": 13, "origem": 4, "destino": 3, "periodo": 9},
+    {"bloco": 14, "origem": 4, "destino": 5, "periodo": 9}
+  ]
+}

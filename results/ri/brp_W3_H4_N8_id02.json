@@ -1,0 +1,17 @@
+{
+  "instancia": "brp_W3_H4_N8_id02",
+  "arquivo": "brp_W3_H4_N8.json",
+  "id": 2,
+  "metodo": "ri",
+  "W": 3,
+  "H": 4,
+  "N": 8,
+  "relocacoes": 0,
+  "num_movimentos": 0,
+  "retiradas": 8,
+  "operacoes_totais": 8,
+  "tempo_cpu_s": 0.000002000,
+  "tempo_parede_s": 0.000003584,
+  "sequencia": [],
+  "movimentos": []
+}

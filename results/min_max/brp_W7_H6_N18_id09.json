@@ -1,0 +1,26 @@
+{
+  "instancia": "brp_W7_H6_N18_id09",
+  "arquivo": "brp_W7_H6_N18.json",
+  "id": 9,
+  "metodo": "min_max",
+  "W": 7,
+  "H": 6,
+  "N": 18,
+  "relocacoes": 8,
+  "num_movimentos": 8,
+  "retiradas": 18,
+  "operacoes_totais": 26,
+  "tempo_cpu_s": 0.000005000,
+  "tempo_parede_s": 0.000005375,
+  "sequencia": [[6, 2], [6, 3], [6, 2], [6, 1], [4, 7], [4, 5], [7, 1], [7, 3]],
+  "movimentos": [
+    {"bloco": 17, "origem": 6, "destino": 2, "periodo": 4},
+    {"bloco": 13, "origem": 6, "destino": 3, "periodo": 4},
+    {"bloco": 14, "origem": 6, "destino": 2, "periodo": 4},
+    {"bloco": 9, "origem": 6, "destino": 1, "periodo": 4},
+    {"bloco": 6, "origem": 4, "destino": 7, "periodo": 5},
+    {"bloco": 18, "origem": 4, "destino": 5, "periodo": 5},
+    {"bloco": 8, "origem": 7, "destino": 1, "periodo": 7},
+    {"bloco": 10, "origem": 7, "destino": 3, "periodo": 7}
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "instancia": "brp_W7_H7_N22_id09",
+  "arquivo": "brp_W7_H7_N22.json",
+  "id": 9,
+  "metodo": "ri",
+  "W": 7,
+  "H": 7,
+  "N": 22,
+  "relocacoes": 12,
+  "num_movimentos": 12,
+  "retiradas": 22,
+  "operacoes_totais": 34,
+  "tempo_cpu_s": 0.000003000,
+  "tempo_parede_s": 0.000004042,
+  "sequencia": [[1, 5], [4, 1], [4, 1], [2, 4], [7, 2], [7, 2], [7, 5], [7, 4], [7, 5], [6, 7], [5, 7], [6, 2]],
+  "movimentos": [
+    {"bloco": 4, "origem": 1, "destino": 5, "periodo": 1},
+    {"bloco": 20, "origem": 4, "destino": 1, "periodo": 2},
+    {"bloco": 10, "origem": 4, "destino": 1, "periodo": 2},
+    {"bloco": 15, "origem": 2, "destino": 4, "periodo": 3},
+    {"bloco": 13, "origem": 7, "destino": 2, "periodo": 5},
+    {"bloco": 9, "origem": 7, "destino": 2, "periodo": 5},
+    {"bloco": 8, "origem": 7, "destino": 5, "periodo": 5},
+    {"bloco": 11, "origem": 7, "destino": 4, "periodo": 5},
+    {"bloco": 14, "origem": 7, "destino": 5, "periodo": 5},
+    {"bloco": 16, "origem": 6, "destino": 7, "periodo": 7},
+    {"bloco": 14, "origem": 5, "destino": 7, "periodo": 8},
+    {"bloco": 18, "origem": 6, "destino": 2, "periodo": 17}
+  ]
+}
