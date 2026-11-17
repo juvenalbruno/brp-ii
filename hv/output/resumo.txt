@@ -1,0 +1,24 @@
+Hipervolume — objetivos: relocacoes, tempo_cpu_s | modo pedido: auto | referência = 1.10 x pior valor
+Colunas hv_max/hv_min = nº de instâncias avaliadas em cada modo. Gaps só onde há exato ótimo.
+
+classe  metodo   instancias  hv_max  hv_min  media_relocacoes  media_tempo_cpu_s  media_hv  media_gap_hv  media_gap_relocacoes
+3x4     min_max  10          10      0       4.2               7.3e-06            0.348048                                    
+3x4     ri       10          10      0       4.4               3.6e-06            0.873016                                    
+4x4     min_max  10          10      0       4.4               9.6e-06            0.601941                                    
+4x4     ri       10          10      0       4.6               4.5e-06            0.822368                                    
+4x5     min_max  10          10      0       7.4               6.2e-06            0.603564                                    
+4x5     ri       10          10      0       7.4               6.5e-06            0.675926                                    
+5x4     min_max  10          10      0       7.5               6.1e-06            0.168315                                    
+5x4     ri       10          10      0       8.6               3e-06              0.622013                                    
+5x5     min_max  10          10      0       10.4              6.7e-06            0.249489                                    
+5x5     ri       10          10      0       12                4.1e-06            0.48282                                     
+7x5     min_max  30          30      0       14.3333           8.23333e-06        0.28262                                     
+7x5     ri       30          30      0       16                4.6e-06            0.617737                                    
+7x6     min_max  30          30      0       19.1              7.66667e-06        0.217882                                    
+7x6     ri       30          30      0       21.4333           4.3e-06            0.603963                                    
+7x7     min_max  30          30      0       24.6              8.23333e-06        0.255865                                    
+7x7     ri       30          30      0       29.9333           5.3e-06            0.404925                                    
+7x8     min_max  30          30      0       33.0667           8.73333e-06        0.306998                                    
+7x8     ri       30          30      0       40.4667           6.3e-06            0.389684                                    
+GERAL   min_max  170         170     0       18.0706           7.91176e-06        0.303615                                    
+GERAL   ri       170         170     0       21.2059           4.89412e-06        0.560298                                    

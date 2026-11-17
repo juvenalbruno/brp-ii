@@ -1,0 +1,3 @@
+instancia,arquivo,id,classe,W,H,N,modo,metodo,status,relocacoes,tempo_cpu_s,norm_relocacoes,norm_tempo_cpu_s,ideal_relocacoes,ideal_tempo_cpu_s,ref_relocacoes,ref_tempo_cpu_s,otimo,hv,gap_hv,gap_relocacoes
+brp_W7_H6_N28_id10,brp_W7_H6_N28.json,10,7x6,7,6,28,hv_max,min_max,,17,8e-06,0,0.833333,17,4e-06,22,8.8e-06,,0.166667,,
+brp_W7_H6_N28_id10,brp_W7_H6_N28.json,10,7x6,7,6,28,hv_max,ri,,20,4e-06,0.6,0,17,4e-06,22,8.8e-06,,0.4,,

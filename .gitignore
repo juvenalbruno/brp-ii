@@ -1,5 +1,4 @@
 build/
-hv/output/
 tests/output/
 .DS_Store
 __pycache__/
