@@ -1,0 +1,32 @@
+{
+  "instancia": "brp_W3_H4_N8_id09",
+  "arquivo": "brp_W3_H4_N8.json",
+  "id": 9,
+  "metodo": "astar",
+  "W": 3,
+  "H": 4,
+  "N": 8,
+  "relocacoes": 2,
+  "num_movimentos": 2,
+  "retiradas": 8,
+  "operacoes_totais": 10,
+  "tempo_cpu_s": 0.000000000,
+  "tempo_parede_s": 0.000026300,
+  "status": "optimal",
+  "otimo_provado": true,
+  "limite_inferior": 2.000000,
+  "gap": 0.000000,
+  "usa_ub": true,
+  "limite_superior_inicial": 2,
+  "h_raiz": 2,
+  "nos_gerados": 1,
+  "nos_expandidos": 0,
+  "podados_repetidos": 0,
+  "podados_ub": 0,
+  "nos_atualizados": 0,
+  "sequencia": [[2, 3], [1, 2]],
+  "movimentos": [
+    {"bloco": 5, "origem": 2, "destino": 3, "periodo": 3},
+    {"bloco": 6, "origem": 1, "destino": 2, "periodo": 4}
+  ]
+}

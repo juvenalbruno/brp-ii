@@ -1,5 +1,5 @@
 // instance.hpp
-// Código compartilhado pelos três executáveis (solver, min_max, ri) e pelos testes:
+// Código compartilhado pelos executáveis (solver, astar, min_max, ri) e pelos testes:
 //   - leitor JSON mínimo (sem dependências externas);
 //   - leitura e validação de instâncias;
 //   - escrita do JSON de resultado;
@@ -489,16 +489,23 @@ struct Resultado {
     double tempoParede = 0.0;      // segundos de relógio
     std::vector<Movimento> movimentos;
 
-    // Campos gravados apenas pelo método exato.
+    // Campos gravados apenas pelos métodos exatos.
+    //   doSolver: exato por PLIM (solver.cpp); grava solver, presolve, status, limite e "gap_mip".
+    //   doBusca:  exato por busca (astar.cpp); grava status, limite e "gap" (sem solver/presolve).
     bool doSolver = false;
+    bool doBusca = false;
     std::string solver;            // solver de PLIM usado, com a versão (ex.: "highs 1.16.0")
     std::string presolve;          // presolve usado: on | off | padrao
-    std::string status;            // optimal | time_limit | infeasible | other
+    std::string status;            // optimal | time_limit | infeasible | other (A*: também node_limit)
     bool otimoProvado = false;
     bool temLimite = false;
     double limiteInferior = 0.0;
     bool temGap = false;
     double gap = 0.0;
+
+    // Campos extras específicos do método, gravados como estão: pares (chave, valor
+    // JSON já formatado). Ex.: {"nos_expandidos", "14"}.
+    std::vector<std::pair<std::string, std::string>> extras;
 };
 
 // Resultado já com a identificação da instância e do método.
@@ -547,6 +554,8 @@ inline void gravarResultado(const Resultado& r, const fs::path& arquivo) {
     if (r.doSolver) {
         f << "  \"solver\": \"" << escaparJson(r.solver) << "\",\n";
         f << "  \"presolve\": \"" << escaparJson(r.presolve) << "\",\n";
+    }
+    if (r.doSolver || r.doBusca) {
         f << "  \"status\": \"" << escaparJson(r.status) << "\",\n";
         f << "  \"otimo_provado\": " << (r.otimoProvado ? "true" : "false") << ",\n";
         if (r.temLimite) {
@@ -555,13 +564,15 @@ inline void gravarResultado(const Resultado& r, const fs::path& arquivo) {
         } else {
             f << "  \"limite_inferior\": null,\n";
         }
+        const char* chaveGap = r.doSolver ? "gap_mip" : "gap";
         if (r.temGap) {
             std::snprintf(buf, sizeof buf, "%.6f", r.gap);
-            f << "  \"gap_mip\": " << buf << ",\n";
+            f << "  \"" << chaveGap << "\": " << buf << ",\n";
         } else {
-            f << "  \"gap_mip\": null,\n";
+            f << "  \"" << chaveGap << "\": null,\n";
         }
     }
+    for (const auto& extra : r.extras) f << "  \"" << escaparJson(extra.first) << "\": " << extra.second << ",\n";
     // Sequência compacta: pares [origem, destino], pilhas a partir de 1; as retiradas
     // ficam implícitas (o alvo sai assim que chega ao topo).
     f << "  \"sequencia\": [";

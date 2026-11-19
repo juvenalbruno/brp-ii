@@ -7,14 +7,18 @@ Passos:
   2. calcula o ótimo restrito (A1) de cada uma por busca em largura (tests/bfs.cpp);
   3. roda as heurísticas, confere que as sequências são executáveis e que nenhuma
      fica abaixo do ótimo;
-  4. roda o executável `solver` com CADA solver de PLIM compilado nele (gurobi, cplex,
+  4. roda o A* (src/astar.cpp) com e sem o limite superior da Min-Max, confere as
+     sequências e exige que seja IGUAL à busca em largura com status optimal; na
+     referência, o A* sem UB tem de reproduzir o slide 24 (17 nós gerados, 14
+     expandidos);
+  5. roda o executável `solver` com CADA solver de PLIM compilado nele (gurobi, cplex,
      highs), confere as sequências e compara com a busca em largura; qualquer
      divergência encerra com erro;
-  5. confere que o modelo com a restrição (6) ORIGINAL é inviável na referência.
+  6. confere que o modelo com a restrição (6) ORIGINAL é inviável na referência.
 
 O resumo diz com quais solvers a validação foi feita e quais adaptadores ficaram sem
-teste. Se o executável `solver` não existir (nenhum solver encontrado), os passos 4 e
-5 não são feitos e isso é dito claramente; nesse caso, se o pacote opcional `highspy`
+teste. Se o executável `solver` não existir (nenhum solver encontrado), os passos 5 e
+6 não são feitos e isso é dito claramente; nesse caso, se o pacote opcional `highspy`
 estiver instalado, a formulação exportada em LP por tests/modelo_lp é conferida com
 ele.
 
@@ -31,12 +35,23 @@ from pathlib import Path
 RAIZ = Path(__file__).resolve().parent.parent
 SAIDA = RAIZ / "tests" / "output"
 OTIMO_REFERENCIA = 6
+# A* sem UB na referência (= exercício do slide 24 de IC0024, módulo 2, aula 2).
+ASTAR_REFERENCIA_GERADOS = 17
+ASTAR_REFERENCIA_EXPANDIDOS = 14
 # Arquivos de instances/ pequenos o bastante (até 4x4) para entrar na comparação.
 INSTANCIAS_REAIS = ["brp_W3_H4_N8.json", "brp_W4_H4_N10.json"]
 
 
 def titulo(texto):
     print("\n" + "=" * 78 + "\n" + texto + "\n" + "=" * 78, flush=True)
+
+
+def executavel(build, nome):
+    """Caminho do executável; no Windows o CMake grava <nome>.exe."""
+    caminho = build / nome
+    if not caminho.exists() and (build / (nome + ".exe")).exists():
+        return build / (nome + ".exe")
+    return caminho
 
 
 def falhar(msg):
@@ -46,7 +61,7 @@ def falhar(msg):
 
 def rodar(cmd, mostrar=True):
     """Roda um comando, mostra a saída e devolve o código de retorno."""
-    p = subprocess.run([str(c) for c in cmd], capture_output=True, text=True)
+    p = subprocess.run([str(c) for c in cmd], capture_output=True, text=True, encoding="utf-8", errors="replace")
     if mostrar:
         sys.stdout.write(p.stdout)
     sys.stdout.write(p.stderr)
@@ -173,8 +188,9 @@ def main():
         falhar("use pelo menos 30 instâncias aleatórias")
 
     build = Path(args.build)
-    exe = {n: build / n for n in ("bfs", "min_max", "ri", "solver", "modelo_lp", "verificar_resultados")}
-    for n in ("bfs", "min_max", "ri", "modelo_lp", "verificar_resultados"):
+    exe = {n: executavel(build, n)
+           for n in ("bfs", "min_max", "ri", "astar", "solver", "modelo_lp", "verificar_resultados")}
+    for n in ("bfs", "min_max", "ri", "astar", "modelo_lp", "verificar_resultados"):
         if not exe[n].exists():
             falhar("executável %s não encontrado; compile antes (cmake --build build)" % exe[n])
 
@@ -215,6 +231,34 @@ def main():
         iguais = sum(1 for i in bfs if heur[metodo][i]["relocacoes"] == bfs[i]["relocacoes"])
         print("%s: nenhuma abaixo do ótimo; atinge o ótimo em %d de %d" % (metodo, iguais, len(bfs)))
 
+    titulo("4. A* x busca em largura (com e sem o limite superior da Min-Max)")
+    variantes = (("astar", []), ("astar_sem_ub", ["--sem-ub"]))
+    for pasta, extra in variantes:
+        if rodar([exe["astar"], pasta_inst, "--out", SAIDA / pasta, "--time-limit", args.time_limit] + extra,
+                 mostrar=False) != 0:
+            falhar("o A* (%s) falhou em alguma instância" % pasta)
+    if rodar([exe["verificar_resultados"], pasta_inst] + [SAIDA / p for p, _ in variantes]) != 0:
+        falhar("há sequência do A* não executável")
+    astar = {p: ler_resultados(SAIDA / p) for p, _ in variantes}
+    print("%-28s %4s %6s %8s %13s %13s" % ("instância", "bfs", "astar", "sem_ub", "nós(UB)", "nós(sem UB)"))
+    for inst in bfs:
+        a, b = astar["astar"][inst], astar["astar_sem_ub"][inst]
+        print("%-28s %4d %6s %8s %6d/%-6d %6d/%-6d"
+              % (inst, bfs[inst]["relocacoes"], a["relocacoes"], b["relocacoes"],
+                 a["nos_expandidos"], a["nos_gerados"], b["nos_expandidos"], b["nos_gerados"]))
+    for pasta, _ in variantes:
+        if comparar_com_bfs(pasta, astar[pasta], bfs, exato=True):
+            falhar("A* (%s) e busca em largura divergem" % pasta)
+        print("%s = busca em largura nas %d instâncias, todas com status optimal" % (pasta, len(bfs)))
+    ref = astar["astar_sem_ub"]["referencia"]
+    if (ref["nos_gerados"], ref["nos_expandidos"]) != (ASTAR_REFERENCIA_GERADOS, ASTAR_REFERENCIA_EXPANDIDOS):
+        falhar("A* sem UB na referência: %d gerados / %d expandidos; o slide 24 dá %d / %d"
+               % (ref["nos_gerados"], ref["nos_expandidos"], ASTAR_REFERENCIA_GERADOS, ASTAR_REFERENCIA_EXPANDIDOS))
+    print("referência, A* sem UB: %d nós gerados e %d expandidos, como no slide 24"
+          % (ref["nos_gerados"], ref["nos_expandidos"]))
+    soma = {p: sum(r["nos_expandidos"] for r in astar[p].values()) for p, _ in variantes}
+    print("nós expandidos no total: com UB = %d, sem UB = %d" % (soma["astar"], soma["astar_sem_ub"]))
+
     # Solvers de PLIM compilados no executável `solver` (gurobi, cplex, highs).
     solvers = []
     if exe["solver"].exists():
@@ -224,7 +268,7 @@ def main():
     validados = []
     highs_lp_validado = False
     for nome in solvers:
-        titulo("4. Solver (%s) x busca em largura" % nome)
+        titulo("5. Solver (%s) x busca em largura" % nome)
         saida = SAIDA / ("solver_" + nome)
         if rodar([exe["solver"], pasta_inst, "--solver", nome, "--out", saida,
                   "--time-limit", args.time_limit]) != 0:
@@ -237,7 +281,7 @@ def main():
         print("solver (%s) = busca em largura nas %d instâncias (referência = %d)"
               % (res["referencia"]["solver"], len(bfs), res["referencia"]["relocacoes"]))
 
-        titulo("5. Restrição (6) original (sem o fator H) na referência, solver %s" % nome)
+        titulo("6. Restrição (6) original (sem o fator H) na referência, solver %s" % nome)
         rodar([exe["solver"], pasta_inst / "referencia.json", "--solver", nome,
                "--out", SAIDA / ("solver_%s_restricao6_original" % nome), "--restricao6-original"])
         orig = ler_resultados(SAIDA / ("solver_%s_restricao6_original" % nome))["referencia"]
@@ -247,14 +291,14 @@ def main():
         validados.append(nome)
 
     if not solvers:
-        titulo("4. Solver: NÃO DISPONÍVEL")
+        titulo("5. Solver: NÃO DISPONÍVEL")
         print("O executável `solver` não existe em %s: nenhum solver de PLIM foi encontrado na compilação." % build)
         try:
             import highspy  # noqa: F401
         except ImportError:
             print("O pacote opcional highspy também não está instalado: a formulação NÃO foi validada.")
         else:
-            titulo("4b. Formulação de brp2_model.hpp exportada em LP e resolvida com HiGHS (highspy)")
+            titulo("5b. Formulação de brp2_model.hpp exportada em LP e resolvida com HiGHS (highspy)")
             if validar_com_highs(exe, pasta_inst, bfs, args.time_limit):
                 falhar("a formulação (via HiGHS) e a busca em largura divergem")
             if rodar([exe["verificar_resultados"], pasta_inst, SAIDA / "highs"]) != 0:
@@ -265,6 +309,7 @@ def main():
     print("busca em largura: referência = %d; %d instâncias no total (%d aleatórias)"
           % (OTIMO_REFERENCIA, len(bfs), args.n))
     print("heurísticas: sequências executáveis e nunca abaixo do ótimo")
+    print("A* (com e sem UB): igual à busca em largura em todas as instâncias; referência reproduz o slide 24")
     for nome in validados:
         print("solver com %s: igual à busca em largura em todas as instâncias; (6) original inviável na referência"
               % nome)
@@ -280,7 +325,7 @@ def main():
         print("VALIDAÇÃO PARCIAL.")
     else:
         print("ATENÇÃO: nenhum solver de PLIM disponível. O MODELO EXATO NÃO FOI VALIDADO.")
-        print("VALIDAÇÃO PARCIAL: apenas busca em largura e heurísticas.")
+        print("VALIDAÇÃO PARCIAL: apenas busca em largura, heurísticas e A*.")
 
 
 if __name__ == "__main__":
