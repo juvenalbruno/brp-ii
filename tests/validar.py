@@ -11,14 +11,18 @@ Passos:
      sequências e exige que seja IGUAL à busca em largura com status optimal; na
      referência, o A* sem UB tem de reproduzir o slide 24 (17 nós gerados, 14
      expandidos);
-  5. roda o executável `solver` com CADA solver de PLIM compilado nele (gurobi, cplex,
+  5. GA (src/ga.cpp): reproduz a decodificação à mão da apresentação na referência
+     (Pai 1 = 8, Pai 2 = 7, Filho = 6, filho complementar = 7); roda GA-A e GA-H,
+     confere as sequências, exige que nenhuma fique abaixo do ótimo e que o GA-H
+     nunca fique pior que a Min-Max em nenhuma semente;
+  6. roda o executável `solver` com CADA solver de PLIM compilado nele (gurobi, cplex,
      highs), confere as sequências e compara com a busca em largura; qualquer
      divergência encerra com erro;
-  6. confere que o modelo com a restrição (6) ORIGINAL é inviável na referência.
+  7. confere que o modelo com a restrição (6) ORIGINAL é inviável na referência.
 
 O resumo diz com quais solvers a validação foi feita e quais adaptadores ficaram sem
-teste. Se o executável `solver` não existir (nenhum solver encontrado), os passos 5 e
-6 não são feitos e isso é dito claramente; nesse caso, se o pacote opcional `highspy`
+teste. Se o executável `solver` não existir (nenhum solver encontrado), os passos 6 e
+7 não são feitos e isso é dito claramente; nesse caso, se o pacote opcional `highspy`
 estiver instalado, a formulação exportada em LP por tests/modelo_lp é conferida com
 ele.
 
@@ -38,6 +42,13 @@ OTIMO_REFERENCIA = 6
 # A* sem UB na referência (= exercício do slide 24 de IC0024, módulo 2, aula 2).
 ASTAR_REFERENCIA_GERADOS = 17
 ASTAR_REFERENCIA_EXPANDIDOS = 14
+# Decodificação à mão da apresentação do GA (aula 3), na referência: cromossomo -> Z.
+GA_DECODIFICACAO_MANUAL = [
+    ("Pai 1", "2,2,2,3,3,3,1,1,2", 8),
+    ("Pai 2", "3,2,2,2,1,3,3,2,2", 7),
+    ("Filho final", "1,2,2,3,3,3,1,1,2", 6),
+    ("Filho complementar", "2,2,2,2,1,3,3,2,2", 7),
+]
 # Arquivos de instances/ pequenos o bastante (até 4x4) para entrar na comparação.
 INSTANCIAS_REAIS = ["brp_W3_H4_N8.json", "brp_W4_H4_N10.json"]
 
@@ -189,8 +200,8 @@ def main():
 
     build = Path(args.build)
     exe = {n: executavel(build, n)
-           for n in ("bfs", "min_max", "ri", "astar", "solver", "modelo_lp", "verificar_resultados")}
-    for n in ("bfs", "min_max", "ri", "astar", "modelo_lp", "verificar_resultados"):
+           for n in ("bfs", "min_max", "ri", "astar", "ga", "solver", "modelo_lp", "verificar_resultados")}
+    for n in ("bfs", "min_max", "ri", "astar", "ga", "modelo_lp", "verificar_resultados"):
         if not exe[n].exists():
             falhar("executável %s não encontrado; compile antes (cmake --build build)" % exe[n])
 
@@ -259,6 +270,35 @@ def main():
     soma = {p: sum(r["nos_expandidos"] for r in astar[p].values()) for p, _ in variantes}
     print("nós expandidos no total: com UB = %d, sem UB = %d" % (soma["astar"], soma["astar_sem_ub"]))
 
+    titulo("5. Algoritmo genético (Gulić et al., 2022): GA-A e GA-H")
+    for nome, genes, esperado in GA_DECODIFICACAO_MANUAL:
+        pasta = SAIDA / "ga_cromossomo"
+        if rodar([exe["ga"], pasta_inst / "referencia.json", "--cromossomo", genes, "--out", pasta],
+                 mostrar=False) != 0:
+            falhar("o GA não decodificou o cromossomo %s" % genes)
+        z = json.loads((pasta / "referencia.json").read_text())["relocacoes"]
+        print("  %-20s [%s] -> Z = %d (apresentação: %d)" % (nome, genes, z, esperado))
+        if z != esperado:
+            falhar("decodificação do GA difere da execução à mão (%s)" % nome)
+    for variante in ("A", "H"):
+        if rodar([exe["ga"], pasta_inst, "--variante", variante, "--sementes", 2, "--time-limit", 0.5,
+                  "--out", SAIDA / ("ga_" + variante.lower())], mostrar=False) != 0:
+            falhar("o GA-%s falhou em alguma instância" % variante)
+    if rodar([exe["verificar_resultados"], pasta_inst, SAIDA / "ga_a", SAIDA / "ga_h"]) != 0:
+        falhar("há sequência do GA não executável")
+    ga = {m: ler_resultados(SAIDA / m) for m in ("ga_a", "ga_h")}
+    for m in ("ga_a", "ga_h"):
+        abaixo = [i for i in bfs if min(ga[m][i]["relocacoes_por_semente"]) < bfs[i]["relocacoes"]]
+        if abaixo or comparar_com_bfs(m, ga[m], bfs, exato=False):
+            falhar("%s abaixo do ótimo em %s" % (m, ", ".join(abaixo)))
+        iguais = sum(1 for i in bfs if ga[m][i]["relocacoes"] == bfs[i]["relocacoes"])
+        print("%s: nenhuma semente abaixo do ótimo; melhor semente atinge o ótimo em %d de %d"
+              % (m, iguais, len(bfs)))
+    pior_que_mm = [i for i in bfs if max(ga["ga_h"][i]["relocacoes_por_semente"]) > heur["min_max"][i]["relocacoes"]]
+    if pior_que_mm:
+        falhar("GA-H pior que a Min-Max em %s (o elitismo deveria impedir)" % ", ".join(pior_que_mm))
+    print("ga_h: nenhuma semente pior que a Min-Max")
+
     # Solvers de PLIM compilados no executável `solver` (gurobi, cplex, highs).
     solvers = []
     if exe["solver"].exists():
@@ -268,7 +308,7 @@ def main():
     validados = []
     highs_lp_validado = False
     for nome in solvers:
-        titulo("5. Solver (%s) x busca em largura" % nome)
+        titulo("6. Solver (%s) x busca em largura" % nome)
         saida = SAIDA / ("solver_" + nome)
         if rodar([exe["solver"], pasta_inst, "--solver", nome, "--out", saida,
                   "--time-limit", args.time_limit]) != 0:
@@ -281,7 +321,7 @@ def main():
         print("solver (%s) = busca em largura nas %d instâncias (referência = %d)"
               % (res["referencia"]["solver"], len(bfs), res["referencia"]["relocacoes"]))
 
-        titulo("6. Restrição (6) original (sem o fator H) na referência, solver %s" % nome)
+        titulo("7. Restrição (6) original (sem o fator H) na referência, solver %s" % nome)
         rodar([exe["solver"], pasta_inst / "referencia.json", "--solver", nome,
                "--out", SAIDA / ("solver_%s_restricao6_original" % nome), "--restricao6-original"])
         orig = ler_resultados(SAIDA / ("solver_%s_restricao6_original" % nome))["referencia"]
@@ -291,14 +331,14 @@ def main():
         validados.append(nome)
 
     if not solvers:
-        titulo("5. Solver: NÃO DISPONÍVEL")
+        titulo("6. Solver: NÃO DISPONÍVEL")
         print("O executável `solver` não existe em %s: nenhum solver de PLIM foi encontrado na compilação." % build)
         try:
             import highspy  # noqa: F401
         except ImportError:
             print("O pacote opcional highspy também não está instalado: a formulação NÃO foi validada.")
         else:
-            titulo("5b. Formulação de brp2_model.hpp exportada em LP e resolvida com HiGHS (highspy)")
+            titulo("6b. Formulação de brp2_model.hpp exportada em LP e resolvida com HiGHS (highspy)")
             if validar_com_highs(exe, pasta_inst, bfs, args.time_limit):
                 falhar("a formulação (via HiGHS) e a busca em largura divergem")
             if rodar([exe["verificar_resultados"], pasta_inst, SAIDA / "highs"]) != 0:
@@ -310,6 +350,7 @@ def main():
           % (OTIMO_REFERENCIA, len(bfs), args.n))
     print("heurísticas: sequências executáveis e nunca abaixo do ótimo")
     print("A* (com e sem UB): igual à busca em largura em todas as instâncias; referência reproduz o slide 24")
+    print("GA: decodificação à mão reproduzida; GA-A e GA-H nunca abaixo do ótimo; GA-H nunca pior que a Min-Max")
     for nome in validados:
         print("solver com %s: igual à busca em largura em todas as instâncias; (6) original inviável na referência"
               % nome)
@@ -325,7 +366,7 @@ def main():
         print("VALIDAÇÃO PARCIAL.")
     else:
         print("ATENÇÃO: nenhum solver de PLIM disponível. O MODELO EXATO NÃO FOI VALIDADO.")
-        print("VALIDAÇÃO PARCIAL: apenas busca em largura, heurísticas e A*.")
+        print("VALIDAÇÃO PARCIAL: apenas busca em largura, heurísticas, A* e GA.")
 
 
 if __name__ == "__main__":

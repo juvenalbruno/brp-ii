@@ -1,5 +1,7 @@
 instancia,arquivo,id,classe,W,H,N,modo,metodo,status,relocacoes,tempo_cpu_s,norm_relocacoes,norm_tempo_cpu_s,ideal_relocacoes,ideal_tempo_cpu_s,ref_relocacoes,ref_tempo_cpu_s,otimo,fonte_otimo,hv,gap_hv,gap_relocacoes
 brp_W4_H4_N10_id02,brp_W4_H4_N10.json,2,4x4,4,4,10,hv_min,astar,optimal,5,0,0,0,5,0,6.6,0.0755106,5,solver,1,-10,0
+brp_W4_H4_N10_id02,brp_W4_H4_N10.json,2,4x4,4,4,10,hv_min,ga_a,,5,0,0,0,5,0,6.6,0.0755106,5,solver,1,-10,0
+brp_W4_H4_N10_id02,brp_W4_H4_N10.json,2,4x4,4,4,10,hv_min,ga_h,,5,0,0,0,5,0,6.6,0.0755106,5,solver,1,-10,0
 brp_W4_H4_N10_id02,brp_W4_H4_N10.json,2,4x4,4,4,10,hv_min,min_max,,5,7e-06,0,9.27022e-05,5,0,6.6,0.0755106,5,solver,0.999907,-9.99898,0
 brp_W4_H4_N10_id02,brp_W4_H4_N10.json,2,4x4,4,4,10,hv_min,ri,,6,5e-06,0.625,6.62159e-05,5,0,6.6,0.0755106,5,solver,0.374975,-3.12473,0.2
 brp_W4_H4_N10_id02,brp_W4_H4_N10.json,2,4x4,4,4,10,hv_min,solver,optimal,5,0.068646,0,0.909091,5,0,6.6,0.0755106,5,solver,0.0909091,0,0

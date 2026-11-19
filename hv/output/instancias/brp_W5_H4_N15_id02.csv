@@ -1,5 +1,7 @@
 instancia,arquivo,id,classe,W,H,N,modo,metodo,status,relocacoes,tempo_cpu_s,norm_relocacoes,norm_tempo_cpu_s,ideal_relocacoes,ideal_tempo_cpu_s,ref_relocacoes,ref_tempo_cpu_s,otimo,fonte_otimo,hv,gap_hv,gap_relocacoes
-brp_W5_H4_N15_id02,brp_W5_H4_N15.json,2,5x4,5,4,15,hv_min,astar,optimal,9,0,0,0,9,0,13.2,2.19475,9,solver,1,-10,0
-brp_W5_H4_N15_id02,brp_W5_H4_N15.json,2,5x4,5,4,15,hv_min,min_max,,10,7e-06,0.238095,3.18943e-06,9,0,13.2,2.19475,9,solver,0.761902,-7.38093,0.111111
-brp_W5_H4_N15_id02,brp_W5_H4_N15.json,2,5x4,5,4,15,hv_min,ri,,12,3e-06,0.714286,1.3669e-06,9,0,13.2,2.19475,9,solver,0.285714,-2.14285,0.333333
-brp_W5_H4_N15_id02,brp_W5_H4_N15.json,2,5x4,5,4,15,hv_min,solver,optimal,9,1.99523,0,0.909091,9,0,13.2,2.19475,9,solver,0.0909091,0,0
+brp_W5_H4_N15_id02,brp_W5_H4_N15.json,2,5x4,5,4,15,hv_min,astar,optimal,9,0,0,0,9,0,13.2,11,9,solver,1,-0.221575,0
+brp_W5_H4_N15_id02,brp_W5_H4_N15.json,2,5x4,5,4,15,hv_min,ga_a,,9,10,0,0.909091,9,0,13.2,11,9,solver,0.0909091,0.888948,0
+brp_W5_H4_N15_id02,brp_W5_H4_N15.json,2,5x4,5,4,15,hv_min,ga_h,,9,10,0,0.909091,9,0,13.2,11,9,solver,0.0909091,0.888948,0
+brp_W5_H4_N15_id02,brp_W5_H4_N15.json,2,5x4,5,4,15,hv_min,min_max,,10,7e-06,0.238095,6.36364e-07,9,0,13.2,11,9,solver,0.761904,0.0692772,0.111111
+brp_W5_H4_N15_id02,brp_W5_H4_N15.json,2,5x4,5,4,15,hv_min,ri,,12,3e-06,0.714286,2.72727e-07,9,0,13.2,11,9,solver,0.285714,0.650979,0.333333
+brp_W5_H4_N15_id02,brp_W5_H4_N15.json,2,5x4,5,4,15,hv_min,solver,optimal,9,1.99523,0,0.181384,9,0,13.2,11,9,solver,0.818616,0,0

@@ -1,6 +1,6 @@
 # BRP-II — Blocks Relocation Problem restrito (suposição A1)
 
-Quatro métodos em C++17 para o BRP restrito, sem chegada de blocos:
+Cinco métodos em C++17 para o BRP restrito, sem chegada de blocos:
 
 | Executável | Método | Arquivo |
 |---|---|---|
@@ -8,6 +8,7 @@ Quatro métodos em C++17 para o BRP restrito, sem chegada de blocos:
 | `astar` | exato, busca informada A* (slides de IC0024, módulo 2) | `src/astar.cpp` |
 | `min_max` | heurística Min-Max (Caserta et al.) | `src/min_max.cpp` + `src/regras.hpp` |
 | `ri` | heurística Reshuffle Index (Murty et al.) | `src/ri.cpp` |
+| `ga` | meta-heurística: algoritmo genético de Gulić et al. (2022), variantes GA-A e GA-H | `src/ga.cpp` |
 
 Problema: baia com `W` pilhas de altura máxima `H` e `N` blocos com prioridades
 distintas `1..N`. Os blocos saem na ordem `1, 2, ..., N`; só o topo de cada pilha é
@@ -27,16 +28,18 @@ src/
   regras.hpp       regra Min-Max (usada pela heurística e como limite superior do A*)
   min_max.cpp      main da heurística Min-Max
   ri.cpp           main da heurística RI
+  ga.cpp           main do algoritmo genético (GA-A e GA-H)
 instances/         instâncias (JSON)
-results/{solver,astar,min_max,ri}/   um JSON por instância
+results/{solver,astar,min_max,ri,ga_a,ga_h}/   um JSON por instância
+analise/compara_ga.py   tabela GA x A* x Min-Max (protocolo da aula 4)
 hv/hv.py           hipervolume e gaps
 tests/             busca em largura, exportação LP, verificador e validar.py
 ```
 
 ## Compilação
 
-Requisitos: CMake >= 3.16 e um compilador C++17. As heurísticas, o A* e os testes
-não dependem de nenhum solver. O alvo `solver` é compilado com **todos os solvers de PLIM
+Requisitos: CMake >= 3.16 e um compilador C++17. As heurísticas, o A*, o GA e os
+testes não dependem de nenhum solver. O alvo `solver` é compilado com **todos os solvers de PLIM
 que o CMake encontrar**:
 
 | Solver | Como o CMake encontra | Licença |
@@ -87,6 +90,17 @@ cmake --build build -j
   - `--max-nos n`: número máximo de estados distintos guardados (padrão 5 000 000,
     cerca de 1 GB). Ao atingir esse limite ou o de tempo, o A* para com
     `status = node_limit` ou `time_limit`.
+- Só no `ga` (ver a seção do GA):
+  - `--variante A|H` (padrão `A`): GA-A grava em `results/ga_a/`, GA-H em
+    `results/ga_h/`;
+  - `--time-limit s`: segundos de **CPU por semente** (padrão 10);
+  - `--sementes n` (padrão 10) e `--semente-inicial s` (padrão 0): roda as sementes
+    `s..s+n-1`;
+  - `--geracoes n`: para também após `n` gerações (o artigo usa 300);
+  - `--populacao`, `--mutacao`, `--elite`, `--imigrantes`, `--torneio`: parâmetros
+    (padrões 100, 0,05, 10, 10, 3);
+  - `--sem-parada-lb`: não para ao atingir o limite inferior `h(S0)`;
+  - `--cromossomo g1,g2,...`: só decodifica esse cromossomo (conferência).
 - Só no `solver`:
   - `--solver gurobi|cplex|highs`: escolhe o solver de PLIM. Sem a opção, usa o
     primeiro disponível nessa ordem. `./build/solver --listar-solvers` mostra os
@@ -102,6 +116,8 @@ cmake --build build -j
 ./build/min_max instances/
 ./build/ri      instances/
 ./build/astar   instances/ --time-limit 600
+./build/ga      instances/ --variante A --sementes 10 --time-limit 10
+./build/ga      instances/ --variante H --sementes 10 --time-limit 10
 ./build/solver  instances/ --time-limit 600 --solver highs
 ```
 
@@ -202,12 +218,20 @@ Um JSON por instância em `results/<método>/<chave>.json`, por exemplo
   - `nos_gerados` (inclui a raiz), `nos_expandidos` (inclui o nó objetivo),
     `podados_repetidos`, `podados_ub` e `nos_atualizados` (estados reencontrados por
     um caminho mais barato antes de serem expandidos).
+- Só no `ga`: `relocacoes`, `sequencia` e `movimentos` são os da **melhor semente**;
+  `tempo_cpu_s` e `tempo_parede_s` são a **média por semente**. Campos extras:
+  `variante`, `limite_inferior_h` (`h(S0)`), `relocacoes_min_max`,
+  `media_relocacoes`, `desvio_relocacoes`, `pior_relocacoes`, `semente_da_melhor`,
+  e por semente (listas na ordem de `sementes`): `relocacoes_por_semente`,
+  `geracoes_por_semente`, `geracao_do_melhor_por_semente`, `avaliacoes_por_semente`,
+  `tempo_ate_melhor_s_por_semente`, `tempo_cpu_s_por_semente` e
+  `parada_por_semente` (`tempo`, `geracoes` ou `lb`); além dos parâmetros usados.
 
 Antes de gravar, todo executável confere que a própria sequência é executável. Para
 reconferir os arquivos já gravados:
 
 ```sh
-./build/verificar_resultados instances results/min_max results/ri results/solver results/astar
+./build/verificar_resultados instances results/min_max results/ri results/solver results/astar     results/ga_a results/ga_h
 ```
 
 ## Formulação (`src/brp2_model.hpp`)
@@ -315,6 +339,109 @@ demais, o ótimo do A* nunca fica abaixo do limite inferior do `solver` nem acim
 da solução dele. Com os 150 ótimos, o gap médio de relocações é de 3,9% para a
 Min-Max e de 16,9% para a RI (`hv/output/resumo.txt`, linha GERAL).
 
+## Algoritmo genético (`src/ga.cpp`)
+
+Implementação do GA de Gulić, Maglić, Krljan e Maglić (2022), *Solving the
+Container Relocation Problem by Using a Metaheuristic Genetic Algorithm*, Applied
+Sciences 12(15), 7397 (doi:10.3390/app12157397), conforme a apresentação da equipe
+na aula 3 de IC0024. O artigo já trata o BRP restrito, com prioridades distintas,
+determinístico e estático; nenhuma mudança de modelo foi necessária.
+
+- **Cromossomo** (codificação indireta): `10N` genes; `g_k ∈ {1..W}` é a pilha de
+  destino do k-ésimo bloqueador relocado (diz *para onde*, nunca *qual* bloco).
+- **Decodificação**: enquanto o alvo não está no topo, o bloqueador do topo vai para
+  `g_k` se `g_k` é outra pilha e não está cheia; senão o gene é ignorado (sem custo)
+  e lê-se o próximo. Como `W·H − N ≥ H − 1`, sempre há destino: todo cromossomo vira
+  uma solução factível, sem penalidade nem reparo. Salvaguarda da equipe: se os
+  `10N` genes acabarem, os bloqueadores restantes seguem a Min-Max (campo
+  `relocacoes_pela_salvaguarda`). Fitness = número de relocações.
+- **Ciclo** (Tabela 1 do artigo): população 100; seleção por torneio determinístico
+  (`k = 3`, não informado no artigo) com elitismo, 50% da geração seguem para
+  reprodução; crossover de 1 ponto com corte sorteado em `[2, n−1]`, que gera os dois
+  filhos complementares; mutação uniforme com `p_m = 0,05` por gene; nova geração =
+  elite + filhos + novos aleatórios. O artigo não dá as proporções de elite e de
+  novos aleatórios; aqui são 10% e 10%, e os outros 80% são filhos.
+- **Adaptações ao protocolo da disciplina**:
+  - parada por **tempo de CPU** (`--time-limit`, padrão 10 s por semente) em vez de
+    300 gerações fixas (`--geracoes 300` reproduz o artigo); a geração alcançada é
+    registrada. A execução também para quando o melhor `Z` atinge o limite inferior
+    `h(S0)` (número de bloqueadores do estado inicial), pois aí ele é ótimo;
+  - **ablação do warm-start**: GA-A (população inicial 100% aleatória, como no
+    artigo) e GA-H (o primeiro indivíduo é o cromossomo da Min-Max: os destinos que
+    ela escolheu, na ordem). Com elitismo, `Z(GA-H) ≤ Z(Min-Max)` em toda semente;
+  - **10 sementes** (0 a 9) por instância: o JSON guarda a melhor solução e, nos
+    campos extras, o `Z` de cada semente, média, desvio e convergência.
+- O gerador é o `std::mt19937_64` com sorteios por módulo, então a mesma semente dá
+  o mesmo resultado em qualquer compilador, mas não necessariamente em máquinas
+  diferentes: a parada é por tempo de CPU, e o número de gerações depende da
+  velocidade da máquina.
+
+Conferência com a execução à mão da apresentação (instância `876 | 2 | 1345`,
+`H = 4`): `./build/ga tests/referencia.json --cromossomo 2,2,2,3,3,3,1,1,2` dá
+`Z = 8` (Pai 1); os cromossomos do Pai 2, do filho final e do filho complementar dão
+7, 6 e 7, como nos slides 7 a 9. O `validar.py` confere os quatro.
+
+### Resultados do GA (aula 4)
+
+Rodada: GA-A e GA-H nas 170 instâncias, 10 sementes (0 a 9), 10 s de CPU por
+semente, 6 processos em paralelo num Ryzen 5 5600G (o limite é por tempo de CPU do
+processo, então o paralelismo não muda o orçamento de cada execução). Tabela gerada
+por `python3 analise/compara_ga.py`.
+
+`Z*` é o ótimo provado (A* ou `solver`) ou, nas 20 instâncias sem ótimo, o melhor
+valor conhecido entre todos os métodos. Entre parênteses, o gap médio
+`(Z − Z*)/Z*` sobre as instâncias com `Z* > 0`. "Média" é a média sobre as
+sementes; "melhor" é a melhor semente. A última coluna é o tempo de CPU médio por
+instância (GA: por semente, que para antes dos 10 s se atingir `h(S0)`).
+
+| Arquivo | Ótimos | `Z*` | Min-Max | GA-A média | GA-A melhor | GA-H média | GA-H melhor | Atinge `Z*` (MM / A / H) | CPU A* / GA (s) |
+|---|---|---|---|---|---|---|---|---|---|
+| `brp_W3_H4_N8` | 10/10 | 4,1 | 4,2 (2,2%) | 4,1 (0,0%) | 4,1 (0,0%) | 4,1 (0,0%) | 4,1 (0,0%) | 9 / 10 / 10 | 0,00 / 7,0 |
+| `brp_W4_H4_N10` | 10/10 | 4,4 | 4,4 (0,0%) | 4,4 (0,0%) | 4,4 (0,0%) | 4,4 (0,0%) | 4,4 (0,0%) | 10 / 10 / 10 | 0,00 / 5,0 |
+| `brp_W4_H5_N12` | 10/10 | 7,1 | 7,4 (3,5%) | 7,1 (0,0%) | 7,1 (0,0%) | 7,1 (0,0%) | 7,1 (0,0%) | 8 / 10 / 10 | 0,00 / 8,0 |
+| `brp_W5_H4_N15` | 10/10 | 7,1 | 7,5 (4,4%) | 7,1 (0,0%) | 7,1 (0,0%) | 7,1 (0,0%) | 7,1 (0,0%) | 7 / 10 / 10 | 0,00 / 9,0 |
+| `brp_W7_H5_N16` | 10/10 | 7,0 | 7,0 (0,0%) | 7,0 (0,0%) | 7,0 (0,0%) | 7,0 (0,0%) | 7,0 (0,0%) | 10 / 10 / 10 | 0,00 / 3,0 |
+| `brp_W5_H5_N18` | 10/10 | 9,8 | 10,4 (6,9%) | 9,8 (0,0%) | 9,8 (0,0%) | 9,8 (0,0%) | 9,8 (0,0%) | 5 / 10 / 10 | 0,00 / 10,0 |
+| `brp_W7_H6_N18` | 10/10 | 7,8 | 7,8 (0,0%) | 7,8 (0,0%) | 7,8 (0,0%) | 7,8 (0,0%) | 7,8 (0,0%) | 10 / 10 / 10 | 0,00 / 5,0 |
+| `brp_W7_H7_N22` | 10/10 | 10,5 | 10,6 (1,0%) | 10,5 (0,0%) | 10,5 (0,0%) | 10,5 (0,0%) | 10,5 (0,0%) | 9 / 10 / 10 | 0,00 / 5,0 |
+| `brp_W7_H5_N23` | 10/10 | 11,6 | 11,7 (0,7%) | 11,6 (0,0%) | 11,6 (0,0%) | 11,6 (0,0%) | 11,6 (0,0%) | 9 / 10 / 10 | 0,01 / 7,0 |
+| `brp_W7_H8_N24` | 10/10 | 13,6 | 13,9 (2,1%) | 13,6 (0,1%) | 13,6 (0,0%) | 13,6 (0,0%) | 13,6 (0,0%) | 8 / 10 / 10 | 0,00 / 9,0 |
+| `brp_W7_H6_N28` | 10/10 | 17,4 | 18,1 (3,7%) | 17,6 (1,0%) | 17,4 (0,0%) | 17,6 (1,4%) | 17,4 (0,0%) | 6 / 10 / 10 | 0,24 / 8,0 |
+| `brp_W7_H5_N31` | 10/10 | 22,2 | 24,3 (9,3%) | 22,5 (1,2%) | 22,2 (0,0%) | 22,5 (1,4%) | 22,3 (0,6%) | 3 / 10 / 9 | 0,02 / 10,0 |
+| `brp_W7_H7_N32` | 10/10 | 20,7 | 22,2 (6,6%) | 21,1 (1,7%) | 20,7 (0,0%) | 21,1 (1,7%) | 20,9 (1,0%) | 4 / 10 / 8 | 0,90 / 10,0 |
+| `brp_W7_H6_N37` | 9/10 | 29,5 | 31,4 (6,3%) | 30,3 (2,7%) | 29,5 (0,0%) | 30,6 (3,6%) | 30,4 (2,7%) | 2 / 10 / 5 | 2,06 / 10,0 |
+| `brp_W7_H8_N37` | 6/10 | 27,7 | 31,3 (12,1%) | 29,2 (5,2%) | 27,7 (0,0%) | 28,9 (4,0%) | 28,2 (1,6%) | 2 / 10 / 7 | 4,89 / 10,0 |
+| `brp_W7_H7_N43` | 2/10 | 37,9 | 41,0 (8,0%) | 39,8 (5,0%) | 38,3 (1,1%) | 39,2 (3,5%) | 38,7 (2,1%) | 0 / 7 / 4 | 9,71 / 10,0 |
+| `brp_W7_H8_N49` | 3/10 | 48,0 | 54,0 (12,2%) | 51,5 (7,2%) | 48,9 (1,9%) | 53,2 (10,5%) | 51,7 (7,4%) | 1 / 6 / 3 | 9,86 / 10,0 |
+| **Total** | **150/170** | 16,8 | 18,1 (4,7%) | 17,3 (1,4%) | 16,9 (0,2%) | 17,4 (1,5%) | 17,2 (0,9%) | 103 / 163 / 146 | 1,63 / 8,0 |
+
+Nas 20 instâncias sem ótimo provado, `Z*` é o melhor valor encontrado, que quase
+sempre vem do próprio GA-A. Isso favorece o GA nessas linhas: o gap real até o
+ótimo pode ser maior. Todas as soluções foram verificadas: nenhuma semente fica
+abaixo de um ótimo provado nem do limite inferior do A*, e nenhuma semente do GA-H
+fica pior que a Min-Max.
+
+Leitura, pelas hipóteses da apresentação:
+
+- **H1** (conjunto A, `W ≤ 5`, 50 instâncias): confirmada. GA-A e GA-H atingem o
+  ótimo em todas as sementes (gap médio 0,0%), mas gastam segundos, contra
+  microssegundos da Min-Max e milissegundos do A*.
+- **H2** (o GA supera a Min-Max): confirmada. No total, o gap médio cai de 4,7% (Min-Max)
+  para 1,4% (média do GA-A) e 0,2% (melhor semente do GA-A). Nas instâncias com 100%
+  de ocupação (`N31`, `N37` com `H = 6`, `N43`, `N49`), de 6 a 12% para 1 a 7%.
+- **H3** (warm-start): parcialmente refutada. O GA-H nunca é pior que a Min-Max e
+  chega ao seu melhor mais cedo (0,45 s contra 0,69 s em média), mas nas instâncias
+  grandes termina **pior** que o GA-A (`N49`: 10,5% contra 7,2% na média). O
+  cromossomo da Min-Max domina a população logo no início e, como cada gene muda o
+  significado dos seguintes, crossover e mutação quase sempre o pioram:
+  convergência prematura. Nas 170 instâncias, a melhor semente do GA-A melhora a
+  Min-Max em 65 e a do GA-H em 57.
+- **A\* × GA**: onde o A* termina (150 instâncias), ele é melhor nos dois critérios,
+  ótimo provado em 1,6 s de média. O GA compensa nas 20 em que o A* esgota a
+  memória: lá a melhor semente do GA-A fica abaixo da solução de parada do A* (a
+  Min-Max) em 17, por exemplo `brp_W7_H8_N49_id02` com 57 contra 66 (limite inferior
+  50).
+
 ## Hipervolume (`hv/hv.py`)
 
 Python 3, só biblioteca padrão.
@@ -383,13 +510,17 @@ O script:
    exige que o valor seja **igual** ao da busca em largura, com `status = optimal`,
    em todas as instâncias; na referência, exige também os 17 nós gerados e 14
    expandidos do slide 24 (A* sem UB);
-5. roda o `solver` com cada solver de PLIM compilado (Gurobi, CPLEX, HiGHS), confere
+5. GA: reproduz na referência a decodificação à mão da apresentação (Pai 1 = 8,
+   Pai 2 = 7, Filho = 6, filho complementar = 7); roda GA-A e GA-H (2 sementes,
+   0,5 s), confere as sequências, exige que nenhuma semente fique abaixo do ótimo e
+   que o GA-H nunca fique pior que a Min-Max;
+6. roda o `solver` com cada solver de PLIM compilado (Gurobi, CPLEX, HiGHS), confere
    as sequências e compara com a busca em largura, encerrando com erro se algum
    valor divergir;
-6. confere que o modelo com a restrição (6) original é inviável na referência.
+7. confere que o modelo com a restrição (6) original é inviável na referência.
 
 O resumo final diz com quais solvers a validação foi feita e quais adaptadores
-ficaram sem teste. Sem o executável `solver`, os passos 5 e 6 não são feitos e o
+ficaram sem teste. Sem o executável `solver`, os passos 6 e 7 não são feitos e o
 script diz isso; nesse caso, se o pacote opcional `highspy` estiver instalado, a
 formulação exportada em LP é conferida com ele.
 
@@ -410,8 +541,11 @@ licença e o CPLEX não está instalado). Portanto:
 - `astar` (com e sem UB): igual à busca em largura nas 61 instâncias do
   `validar.py` e em mais 663 aleatórias (`--n 200` com as sementes 1, 2 e 3);
   referência = 6, com os 17 nós gerados e 14 expandidos do slide 24. Testado no
-  Windows (g++ 15 do MSYS2), onde não há solver de PLIM, então os passos 5 e 6 não
-  rodaram lá;
+  Windows (g++ 15 do MSYS2), onde não há solver de PLIM, então os passos do
+  `solver` não rodaram lá;
+- `ga`: decodificação à mão da apresentação reproduzida; GA-A e GA-H nunca abaixo
+  do ótimo da busca em largura e GA-H nunca pior que a Min-Max nas 61 instâncias do
+  `validar.py`;
 - `solver` com **HiGHS**: igual à busca em largura nas 61 instâncias do
   `validar.py` (40 aleatórias, 20 reais de até 4×4 e a referência); referência = 6;
   versão original da (6) inviável na referência;

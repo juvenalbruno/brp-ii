@@ -1,4 +1,6 @@
 instancia,arquivo,id,classe,W,H,N,modo,metodo,status,relocacoes,tempo_cpu_s,norm_relocacoes,norm_tempo_cpu_s,ideal_relocacoes,ideal_tempo_cpu_s,ref_relocacoes,ref_tempo_cpu_s,otimo,fonte_otimo,hv,gap_hv,gap_relocacoes
-brp_W7_H7_N43_id10,brp_W7_H7_N43.json,10,7x7,7,7,43,hv_max,astar,node_limit,43,11.7344,0,0.909091,43,6e-06,51.7,12.9078,,,0.0909091,,
-brp_W7_H7_N43_id10,brp_W7_H7_N43.json,10,7x7,7,7,43,hv_max,min_max,,43,1.1e-05,0,3.87362e-07,43,6e-06,51.7,12.9078,,,1,,
-brp_W7_H7_N43_id10,brp_W7_H7_N43.json,10,7x7,7,7,43,hv_max,ri,,47,6e-06,0.45977,0,43,6e-06,51.7,12.9078,,,0.54023,,
+brp_W7_H7_N43_id10,brp_W7_H7_N43.json,10,7x7,7,7,43,hv_max,astar,node_limit,43,11.7344,0.186916,0.909091,41,6e-06,51.7,12.9078,,,0.0739168,,
+brp_W7_H7_N43_id10,brp_W7_H7_N43.json,10,7x7,7,7,43,hv_max,ga_a,,41,10,0,0.774725,41,6e-06,51.7,12.9078,,,0.225275,,
+brp_W7_H7_N43_id10,brp_W7_H7_N43.json,10,7x7,7,7,43,hv_max,ga_h,,43,10,0.186916,0.774725,41,6e-06,51.7,12.9078,,,0.183168,,
+brp_W7_H7_N43_id10,brp_W7_H7_N43.json,10,7x7,7,7,43,hv_max,min_max,,43,1.1e-05,0.186916,3.87362e-07,41,6e-06,51.7,12.9078,,,0.813084,,
+brp_W7_H7_N43_id10,brp_W7_H7_N43.json,10,7x7,7,7,43,hv_max,ri,,47,6e-06,0.560748,0,41,6e-06,51.7,12.9078,,,0.439252,,

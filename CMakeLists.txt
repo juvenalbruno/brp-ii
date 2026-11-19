@@ -30,6 +30,10 @@ add_executable(ri src/ri.cpp)
 # A* (busca informada); também não depende de solver de PLIM.
 add_executable(astar src/astar.cpp)
 
+# ------------------------------------------------------------- meta-heurística
+# Algoritmo genético de Gulić et al. (2022).
+add_executable(ga src/ga.cpp)
+
 # --------------------------------------------------------------------- testes
 # Também não dependem do Gurobi.
 add_executable(bfs tests/bfs.cpp)

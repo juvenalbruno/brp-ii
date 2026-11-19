@@ -1,5 +1,7 @@
 instancia,arquivo,id,classe,W,H,N,modo,metodo,status,relocacoes,tempo_cpu_s,norm_relocacoes,norm_tempo_cpu_s,ideal_relocacoes,ideal_tempo_cpu_s,ref_relocacoes,ref_tempo_cpu_s,otimo,fonte_otimo,hv,gap_hv,gap_relocacoes
 brp_W7_H8_N24_id01,brp_W7_H8_N24.json,1,7x8,7,8,24,hv_min,astar,optimal,13,0,0,0,13,0,18.7,108.853,13,solver,1,-10,0
+brp_W7_H8_N24_id01,brp_W7_H8_N24.json,1,7x8,7,8,24,hv_min,ga_a,,13,10,0,0.0918674,13,0,18.7,108.853,13,solver,0.908133,-8.98946,0
+brp_W7_H8_N24_id01,brp_W7_H8_N24.json,1,7x8,7,8,24,hv_min,ga_h,,13,10,0,0.0918674,13,0,18.7,108.853,13,solver,0.908133,-8.98946,0
 brp_W7_H8_N24_id01,brp_W7_H8_N24.json,1,7x8,7,8,24,hv_min,min_max,,13,6e-06,0,5.51204e-08,13,0,18.7,108.853,13,solver,1,-10,0
 brp_W7_H8_N24_id01,brp_W7_H8_N24.json,1,7x8,7,8,24,hv_min,ri,,17,4e-06,0.701754,3.67469e-08,13,0,18.7,108.853,13,solver,0.298246,-2.2807,0.307692
 brp_W7_H8_N24_id01,brp_W7_H8_N24.json,1,7x8,7,8,24,hv_min,solver,optimal,13,98.9569,0,0.909091,13,0,18.7,108.853,13,solver,0.0909091,0,0

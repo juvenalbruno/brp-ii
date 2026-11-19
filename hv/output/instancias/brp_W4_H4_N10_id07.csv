@@ -1,5 +1,7 @@
 instancia,arquivo,id,classe,W,H,N,modo,metodo,status,relocacoes,tempo_cpu_s,norm_relocacoes,norm_tempo_cpu_s,ideal_relocacoes,ideal_tempo_cpu_s,ref_relocacoes,ref_tempo_cpu_s,otimo,fonte_otimo,hv,gap_hv,gap_relocacoes
-brp_W4_H4_N10_id07,brp_W4_H4_N10.json,7,4x4,4,4,10,hv_min,astar,optimal,6,0,0,0,6,0,6.6,0.0989505,6,solver,1,-10,0
-brp_W4_H4_N10_id07,brp_W4_H4_N10.json,7,4x4,4,4,10,hv_min,min_max,,6,1e-05,0,0.000101061,6,0,6.6,0.0989505,6,solver,0.999899,-9.99889,0
-brp_W4_H4_N10_id07,brp_W4_H4_N10.json,7,4x4,4,4,10,hv_min,ri,,6,1e-05,0,0.000101061,6,0,6.6,0.0989505,6,solver,0.999899,-9.99889,0
-brp_W4_H4_N10_id07,brp_W4_H4_N10.json,7,4x4,4,4,10,hv_min,solver,optimal,6,0.089955,0,0.909091,6,0,6.6,0.0989505,6,solver,0.0909091,0,0
+brp_W4_H4_N10_id07,brp_W4_H4_N10.json,7,4x4,4,4,10,hv_min,astar,optimal,6,0,0,0,6,0,6.6,11,6,solver,1,-0.00824515,0
+brp_W4_H4_N10_id07,brp_W4_H4_N10.json,7,4x4,4,4,10,hv_min,ga_a,,6,10,0,0.909091,6,0,6.6,11,6,solver,0.0909091,0.908341,0
+brp_W4_H4_N10_id07,brp_W4_H4_N10.json,7,4x4,4,4,10,hv_min,ga_h,,6,10,0,0.909091,6,0,6.6,11,6,solver,0.0909091,0.908341,0
+brp_W4_H4_N10_id07,brp_W4_H4_N10.json,7,4x4,4,4,10,hv_min,min_max,,6,1e-05,0,9.09091e-07,6,0,6.6,11,6,solver,0.999999,-0.00824424,0
+brp_W4_H4_N10_id07,brp_W4_H4_N10.json,7,4x4,4,4,10,hv_min,ri,,6,1e-05,0,9.09091e-07,6,0,6.6,11,6,solver,0.999999,-0.00824424,0
+brp_W4_H4_N10_id07,brp_W4_H4_N10.json,7,4x4,4,4,10,hv_min,solver,optimal,6,0.089955,0,0.00817773,6,0,6.6,11,6,solver,0.991822,0,0
