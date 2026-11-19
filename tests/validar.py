@@ -7,15 +7,16 @@ Passos:
   2. calcula o ótimo restrito (A1) de cada uma por busca em largura (tests/bfs.cpp);
   3. roda as heurísticas, confere que as sequências são executáveis e que nenhuma
      fica abaixo do ótimo;
-  4. roda o solver (Gurobi), confere as sequências e compara com a busca em largura;
-     qualquer divergência encerra com erro;
+  4. roda o executável `solver` com CADA solver de PLIM compilado nele (gurobi, cplex,
+     highs), confere as sequências e compara com a busca em largura; qualquer
+     divergência encerra com erro;
   5. confere que o modelo com a restrição (6) ORIGINAL é inviável na referência.
 
-Se o executável `solver` não existir (Gurobi indisponível), os passos 4 e 5 não podem
-ser feitos com o Gurobi e isso é dito claramente. Nesse caso, se o pacote opcional
-`highspy` estiver instalado, a FORMULAÇÃO (as mesmas restrições de brp2_model.hpp,
-exportadas em LP por tests/modelo_lp) é conferida com o solver HiGHS. Isso valida a
-formulação, mas não a ligação com o Gurobi (carregarNoGurobi e solver.cpp).
+O resumo diz com quais solvers a validação foi feita e quais adaptadores ficaram sem
+teste. Se o executável `solver` não existir (nenhum solver encontrado), os passos 4 e
+5 não são feitos e isso é dito claramente; nesse caso, se o pacote opcional `highspy`
+estiver instalado, a formulação exportada em LP por tests/modelo_lp é conferida com
+ele.
 
 Uso: python3 tests/validar.py [--build build] [--n 40] [--seed 2026] [--time-limit 300]
 """
@@ -214,57 +215,71 @@ def main():
         iguais = sum(1 for i in bfs if heur[metodo][i]["relocacoes"] == bfs[i]["relocacoes"])
         print("%s: nenhuma abaixo do ótimo; atinge o ótimo em %d de %d" % (metodo, iguais, len(bfs)))
 
-    gurobi_validado = False
-    highs_validado = False
+    # Solvers de PLIM compilados no executável `solver` (gurobi, cplex, highs).
+    solvers = []
     if exe["solver"].exists():
-        titulo("4. Solver (Gurobi) x busca em largura")
-        if rodar([exe["solver"], pasta_inst, "--out", SAIDA / "solver", "--time-limit", args.time_limit]) != 0:
-            falhar("o solver falhou em alguma instância")
-        if rodar([exe["verificar_resultados"], pasta_inst, SAIDA / "solver"]) != 0:
-            falhar("há sequência do solver não executável")
-        solver = ler_resultados(SAIDA / "solver")
-        if comparar_com_bfs("solver", solver, bfs, exato=True):
-            falhar("solver e busca em largura divergem")
-        print("solver = busca em largura nas %d instâncias (referência = %d)"
-              % (len(bfs), solver["referencia"]["relocacoes"]))
+        p = subprocess.run([str(exe["solver"]), "--listar-solvers"], capture_output=True, text=True)
+        solvers = p.stdout.split()
 
-        titulo("5. Restrição (6) original (sem o fator H) na referência")
-        rodar([exe["solver"], pasta_inst / "referencia.json", "--out", SAIDA / "solver_restricao6_original",
-               "--restricao6-original"])
-        orig = ler_resultados(SAIDA / "solver_restricao6_original")["referencia"]
+    validados = []
+    highs_lp_validado = False
+    for nome in solvers:
+        titulo("4. Solver (%s) x busca em largura" % nome)
+        saida = SAIDA / ("solver_" + nome)
+        if rodar([exe["solver"], pasta_inst, "--solver", nome, "--out", saida,
+                  "--time-limit", args.time_limit]) != 0:
+            falhar("o solver (%s) falhou em alguma instância" % nome)
+        if rodar([exe["verificar_resultados"], pasta_inst, saida]) != 0:
+            falhar("há sequência do solver (%s) não executável" % nome)
+        res = ler_resultados(saida)
+        if comparar_com_bfs("solver/" + nome, res, bfs, exato=True):
+            falhar("solver (%s) e busca em largura divergem" % nome)
+        print("solver (%s) = busca em largura nas %d instâncias (referência = %d)"
+              % (res["referencia"]["solver"], len(bfs), res["referencia"]["relocacoes"]))
+
+        titulo("5. Restrição (6) original (sem o fator H) na referência, solver %s" % nome)
+        rodar([exe["solver"], pasta_inst / "referencia.json", "--solver", nome,
+               "--out", SAIDA / ("solver_%s_restricao6_original" % nome), "--restricao6-original"])
+        orig = ler_resultados(SAIDA / ("solver_%s_restricao6_original" % nome))["referencia"]
         if orig["status"] != "infeasible":
             falhar("esperava status infeasible com a (6) original, veio %s" % orig["status"])
         print("modelo original inviável na referência, como esperado")
-        gurobi_validado = True
-    else:
-        titulo("4. Solver (Gurobi): NÃO DISPONÍVEL")
-        print("O executável `solver` não existe em %s: o Gurobi não foi encontrado na compilação." % build)
-        print("A comparação solver x busca em largura NÃO foi feita com o Gurobi.")
+        validados.append(nome)
+
+    if not solvers:
+        titulo("4. Solver: NÃO DISPONÍVEL")
+        print("O executável `solver` não existe em %s: nenhum solver de PLIM foi encontrado na compilação." % build)
         try:
             import highspy  # noqa: F401
         except ImportError:
             print("O pacote opcional highspy também não está instalado: a formulação NÃO foi validada.")
         else:
-            titulo("4b. Formulação de brp2_model.hpp exportada em LP e resolvida com HiGHS")
+            titulo("4b. Formulação de brp2_model.hpp exportada em LP e resolvida com HiGHS (highspy)")
             if validar_com_highs(exe, pasta_inst, bfs, args.time_limit):
                 falhar("a formulação (via HiGHS) e a busca em largura divergem")
             if rodar([exe["verificar_resultados"], pasta_inst, SAIDA / "highs"]) != 0:
                 falhar("há sequência do modelo (via HiGHS) não executável")
-            highs_validado = True
+            highs_lp_validado = True
 
     titulo("RESUMO")
     print("busca em largura: referência = %d; %d instâncias no total (%d aleatórias)"
           % (OTIMO_REFERENCIA, len(bfs), args.n))
     print("heurísticas: sequências executáveis e nunca abaixo do ótimo")
-    if gurobi_validado:
-        print("solver (Gurobi): igual à busca em largura em todas as instâncias; (6) original inviável na referência")
-        print("VALIDAÇÃO COMPLETA: OK")
-    elif highs_validado:
-        print("formulação (LP + HiGHS): igual à busca em largura em todas as instâncias; (6) original inviável")
-        print("ATENÇÃO: GUROBI INDISPONÍVEL. solver.cpp e carregarNoGurobi() NÃO foram compilados nem executados.")
-        print("VALIDAÇÃO PARCIAL: formulação conferida com HiGHS; falta rodar com o Gurobi.")
+    for nome in validados:
+        print("solver com %s: igual à busca em largura em todas as instâncias; (6) original inviável na referência"
+              % nome)
+    nao_testados = [n for n in ("gurobi", "cplex", "highs") if n not in validados]
+    if validados:
+        if nao_testados:
+            print("ATENÇÃO: adaptadores NÃO compilados nem executados nesta máquina: %s." % ", ".join(nao_testados))
+            print("A formulação é a mesma para todos; o que falta testar neles é só a ligação de backends.hpp.")
+        print("VALIDAÇÃO OK com: %s" % ", ".join(validados))
+    elif highs_lp_validado:
+        print("formulação (LP + highspy): igual à busca em largura em todas as instâncias; (6) original inviável")
+        print("ATENÇÃO: o executável `solver` não foi compilado; solver.cpp e backends.hpp NÃO foram testados.")
+        print("VALIDAÇÃO PARCIAL.")
     else:
-        print("ATENÇÃO: GUROBI INDISPONÍVEL e sem highspy. O MODELO EXATO NÃO FOI VALIDADO.")
+        print("ATENÇÃO: nenhum solver de PLIM disponível. O MODELO EXATO NÃO FOI VALIDADO.")
         print("VALIDAÇÃO PARCIAL: apenas busca em largura e heurísticas.")
 
 

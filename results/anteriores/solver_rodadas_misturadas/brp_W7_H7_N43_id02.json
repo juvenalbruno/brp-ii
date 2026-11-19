@@ -1,0 +1,23 @@
+{
+  "instancia": "brp_W7_H7_N43_id02",
+  "arquivo": "brp_W7_H7_N43.json",
+  "id": 2,
+  "metodo": "solver",
+  "W": 7,
+  "H": 7,
+  "N": 43,
+  "relocacoes": null,
+  "num_movimentos": null,
+  "retiradas": null,
+  "operacoes_totais": null,
+  "tempo_cpu_s": 223.408262000,
+  "tempo_parede_s": 123.051253625,
+  "solver": "highs 1.16.0",
+  "presolve": "off",
+  "status": "time_limit",
+  "otimo_provado": false,
+  "limite_inferior": 33.000000,
+  "gap_mip": null,
+  "sequencia": [],
+  "movimentos": []
+}

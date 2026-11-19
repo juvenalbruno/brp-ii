@@ -1,0 +1,33 @@
+{
+  "instancia": "brp_W7_H6_N18_id04",
+  "arquivo": "brp_W7_H6_N18.json",
+  "id": 4,
+  "metodo": "solver",
+  "W": 7,
+  "H": 6,
+  "N": 18,
+  "relocacoes": 10,
+  "num_movimentos": 10,
+  "retiradas": 18,
+  "operacoes_totais": 28,
+  "tempo_cpu_s": 18.161676000,
+  "tempo_parede_s": 11.072390459,
+  "solver": "highs 1.16.0",
+  "status": "optimal",
+  "otimo_provado": true,
+  "limite_inferior": 10.000000,
+  "gap_mip": 0.000000,
+  "sequencia": [[3, 5], [3, 5], [7, 5], [7, 1], [6, 7], [6, 1], [6, 7], [5, 2], [4, 1], [4, 1]],
+  "movimentos": [
+    {"bloco": 11, "origem": 3, "destino": 5, "periodo": 1},
+    {"bloco": 18, "origem": 3, "destino": 5, "periodo": 1},
+    {"bloco": 6, "origem": 7, "destino": 5, "periodo": 3},
+    {"bloco": 9, "origem": 7, "destino": 1, "periodo": 3},
+    {"bloco": 17, "origem": 6, "destino": 7, "periodo": 5},
+    {"bloco": 7, "origem": 6, "destino": 1, "periodo": 5},
+    {"bloco": 16, "origem": 6, "destino": 7, "periodo": 5},
+    {"bloco": 18, "origem": 5, "destino": 2, "periodo": 11},
+    {"bloco": 14, "origem": 4, "destino": 1, "periodo": 12},
+    {"bloco": 13, "origem": 4, "destino": 1, "periodo": 12}
+  ]
+}

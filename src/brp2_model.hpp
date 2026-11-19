@@ -2,10 +2,9 @@
 // ÚNICO arquivo com toda a formulação BRP-II corrigida (BRP restrito, suposição A1).
 //
 // A formulação é montada numa estrutura neutra (variáveis binárias + linhas
-// lineares), independente de solver. Com a macro BRP2_COM_GUROBI definida, a função
-// carregarNoGurobi() copia essa estrutura para um GRBModel. A estrutura neutra existe
-// para que exatamente as mesmas restrições possam ser exportadas em formato LP e
-// conferidas com outro solver (ver tests/modelo_lp.cpp).
+// lineares), independente de solver. Os adaptadores de backends.hpp copiam essa
+// estrutura para o Gurobi, o CPLEX ou o HiGHS, sem acrescentar nem alterar
+// restrições; tests/modelo_lp.cpp exporta a mesma estrutura em formato LP.
 //
 // -----------------------------------------------------------------------------
 // Modelo
@@ -94,10 +93,6 @@
 #include <vector>
 
 #include "instance.hpp"
-
-#ifdef BRP2_COM_GUROBI
-#include "gurobi_c++.h"
-#endif
 
 namespace brp2 {
 
@@ -517,35 +512,5 @@ inline std::vector<brp::Movimento> extrairMovimentos(const Modelo& m, const std:
     for (const VarX* x : ativos) movs.push_back({x->n, x->i + 1, x->k + 1, x->t});
     return movs;
 }
-
-#ifdef BRP2_COM_GUROBI
-// Copia a formulação para um GRBModel (minimização). Devolve as variáveis do Gurobi
-// na mesma ordem de Modelo::nomeVar.
-inline std::vector<GRBVar> carregarNoGurobi(const Modelo& m, GRBModel& grb) {
-    std::vector<GRBVar> vars;
-    vars.reserve(m.numVars());
-    for (int v = 0; v < m.numVars(); ++v)
-        vars.push_back(grb.addVar(m.lb[v], m.ub[v], m.obj[v], GRB_BINARY, m.nomeVar[v]));
-    grb.update();
-    grb.set(GRB_IntAttr_ModelSense, GRB_MINIMIZE);
-
-    std::vector<double> coefs;
-    std::vector<GRBVar> termos;
-    for (const Linha& ln : m.linhas) {
-        coefs.clear();
-        termos.clear();
-        for (const Termo& tm : ln.termos) {
-            coefs.push_back(tm.coef);
-            termos.push_back(vars[tm.var]);
-        }
-        GRBLinExpr expr;
-        if (!termos.empty()) expr.addTerms(coefs.data(), termos.data(), static_cast<int>(termos.size()));
-        char sentido = ln.sentido == '<' ? GRB_LESS_EQUAL : ln.sentido == '>' ? GRB_GREATER_EQUAL : GRB_EQUAL;
-        grb.addConstr(expr, sentido, ln.rhs, ln.nome);
-    }
-    grb.update();
-    return vars;
-}
-#endif  // BRP2_COM_GUROBI
 
 }  // namespace brp2

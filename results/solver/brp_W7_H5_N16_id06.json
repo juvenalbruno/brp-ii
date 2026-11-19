@@ -1,0 +1,29 @@
+{
+  "instancia": "brp_W7_H5_N16_id06",
+  "arquivo": "brp_W7_H5_N16.json",
+  "id": 6,
+  "metodo": "solver",
+  "W": 7,
+  "H": 5,
+  "N": 16,
+  "relocacoes": 6,
+  "num_movimentos": 6,
+  "retiradas": 16,
+  "operacoes_totais": 22,
+  "tempo_cpu_s": 0.814187000,
+  "tempo_parede_s": 0.815626667,
+  "solver": "highs 1.16.0",
+  "status": "optimal",
+  "otimo_provado": true,
+  "limite_inferior": 6.000000,
+  "gap_mip": 0.000000,
+  "sequencia": [[3, 1], [5, 4], [5, 7], [5, 2], [2, 3], [2, 1]],
+  "movimentos": [
+    {"bloco": 9, "origem": 3, "destino": 1, "periodo": 1},
+    {"bloco": 15, "origem": 5, "destino": 4, "periodo": 2},
+    {"bloco": 3, "origem": 5, "destino": 7, "periodo": 2},
+    {"bloco": 5, "origem": 5, "destino": 2, "periodo": 2},
+    {"bloco": 8, "origem": 2, "destino": 3, "periodo": 7},
+    {"bloco": 12, "origem": 2, "destino": 1, "periodo": 11}
+  ]
+}

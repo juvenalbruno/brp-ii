@@ -1,3 +1,4 @@
 instancia,arquivo,id,classe,W,H,N,modo,metodo,status,relocacoes,tempo_cpu_s,norm_relocacoes,norm_tempo_cpu_s,ideal_relocacoes,ideal_tempo_cpu_s,ref_relocacoes,ref_tempo_cpu_s,otimo,hv,gap_hv,gap_relocacoes
-brp_W7_H5_N23_id05,brp_W7_H5_N23.json,5,7x5,7,5,23,hv_max,min_max,,10,6e-06,0,0,10,6e-06,12.1,9.9e-06,,1,,
-brp_W7_H5_N23_id05,brp_W7_H5_N23.json,5,7x5,7,5,23,hv_max,ri,,11,9e-06,0.47619,0.769231,10,6e-06,12.1,9.9e-06,,0.120879,,
+brp_W7_H5_N23_id05,brp_W7_H5_N23.json,5,7x5,7,5,23,hv_min,min_max,,10,6e-06,0,0,10,6e-06,12.1,88.4688,10,1,-10,0
+brp_W7_H5_N23_id05,brp_W7_H5_N23.json,5,7x5,7,5,23,hv_min,ri,,11,9e-06,0.47619,3.39102e-08,10,6e-06,12.1,88.4688,10,0.52381,-4.7619,0.1
+brp_W7_H5_N23_id05,brp_W7_H5_N23.json,5,7x5,7,5,23,hv_min,solver,optimal,10,80.4262,0,0.909091,10,6e-06,12.1,88.4688,10,0.0909091,0,0

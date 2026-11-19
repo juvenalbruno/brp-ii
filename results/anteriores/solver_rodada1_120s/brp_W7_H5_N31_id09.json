@@ -1,0 +1,22 @@
+{
+  "instancia": "brp_W7_H5_N31_id09",
+  "arquivo": "brp_W7_H5_N31.json",
+  "id": 9,
+  "metodo": "solver",
+  "W": 7,
+  "H": 5,
+  "N": 31,
+  "relocacoes": null,
+  "num_movimentos": null,
+  "retiradas": null,
+  "operacoes_totais": null,
+  "tempo_cpu_s": 176.607462000,
+  "tempo_parede_s": 127.139099541,
+  "solver": "highs 1.16.0",
+  "status": "time_limit",
+  "otimo_provado": false,
+  "limite_inferior": 28.000000,
+  "gap_mip": null,
+  "sequencia": [],
+  "movimentos": []
+}

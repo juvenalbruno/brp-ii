@@ -4,7 +4,7 @@ Três métodos em C++17 para o BRP restrito, sem chegada de blocos:
 
 | Executável | Método | Arquivo |
 |---|---|---|
-| `solver` | exato, formulação BRP-II corrigida, Gurobi | `src/solver.cpp` + `src/brp2_model.hpp` |
+| `solver` | exato, formulação BRP-II corrigida, resolvida com Gurobi, CPLEX ou HiGHS | `src/solver.cpp` + `src/brp2_model.hpp` + `src/backends.hpp` |
 | `min_max` | heurística Min-Max (Caserta et al.) | `src/min_max.cpp` |
 | `ri` | heurística Reshuffle Index (Murty et al.) | `src/ri.cpp` |
 
@@ -20,7 +20,8 @@ CMakeLists.txt
 src/
   brp2_model.hpp   toda a formulação BRP-II corrigida (único lugar com restrições)
   instance.hpp     JSON, instância, resultado, verificador de sequências, laço das heurísticas
-  solver.cpp       main do exato (Gurobi)
+  backends.hpp     ligação da formulação com Gurobi, CPLEX e HiGHS (sem restrições)
+  solver.cpp       main do exato
   min_max.cpp      main da heurística Min-Max
   ri.cpp           main da heurística RI
 instances/         instâncias (JSON)
@@ -31,38 +32,59 @@ tests/             busca em largura, exportação LP, verificador e validar.py
 
 ## Compilação
 
-Requisitos: CMake >= 3.16 e um compilador C++17. O Gurobi é necessário **apenas**
-para o alvo `solver`.
+Requisitos: CMake >= 3.16 e um compilador C++17. As heurísticas e os testes não
+dependem de nenhum solver. O alvo `solver` é compilado com **todos os solvers de PLIM
+que o CMake encontrar**:
+
+| Solver | Como o CMake encontra | Licença |
+|---|---|---|
+| HiGHS | `find_package(highs)`; no macOS: `brew install highs` | aberto, sem licença |
+| CPLEX | `CPLEX_HOME` (variável de ambiente ou `-DCPLEX_HOME=...`) | acadêmica completa (a Community Edition limita a 1 000 variáveis) |
+| Gurobi | `GUROBI_HOME` (variável de ambiente ou `-DGUROBI_HOME=...`) | acadêmica |
 
 ```sh
-export GUROBI_HOME=/caminho/do/gurobi    # ex.: /Library/gurobi1103/macos_universal2
-cmake -S . -B build                      # ou: cmake -S . -B build -DGUROBI_HOME=...
+brew install highs                                   # HiGHS
+export CPLEX_HOME=/Applications/CPLEX_Studio2211/cplex   # opcional
+export GUROBI_HOME=/Library/gurobi1300/macos_universal2  # opcional
+cmake -S . -B build
 cmake --build build -j
 ```
 
-`GUROBI_HOME` deve conter `include/gurobi_c++.h` e `lib/` (com `libgurobi_c++` e
-`libgurobiNNN`). Se não estiver definido ou estiver incompleto, o CMake avisa e pula
-o alvo `solver`; `min_max`, `ri` e os testes compilam normalmente. Os executáveis
-ficam em `build/`.
+- `CPLEX_HOME` é a pasta `cplex` do CPLEX Optimization Studio (a que contém
+  `include/ilcplex/cplex.h` e `lib/<arquitetura>/static_pic/libcplex.a`); a raiz do
+  Studio também é aceita.
+- `GUROBI_HOME` deve conter `include/gurobi_c++.h` e `lib/`.
+- Se o HiGHS estiver fora do caminho padrão, use `-DCMAKE_PREFIX_PATH=/caminho`.
+
+O CMake informa quais solvers entraram (`Alvo solver com: ...`). Se nenhum for
+encontrado, avisa e pula o alvo `solver`. Os executáveis ficam em `build/`.
 
 ## Uso
 
 ```sh
-./build/<exe> <instância.json | pasta> [--time-limit s] [--out pasta]
+./build/<exe> <instância.json | pasta> [--time-limit s] [--out pasta] [--id n]
 ```
 
 - Passando uma pasta, todos os `.json` dela são processados.
+- `--id n`: processa só a instância de `id` n de cada arquivo.
 - `--out`: pasta de saída. Padrão: `results/<método>/` na raiz do projeto.
 - `--time-limit`: limite em segundos por instância para o `solver` (padrão 3600). As
   heurísticas aceitam a opção por uniformidade, mas não a usam.
-- Só no `solver`: `--threads n`, `--verbose` (log do Gurobi) e
-  `--restricao6-original` (usa a restrição (6) do artigo original, só para
-  demonstrar que ela é inviável; não use para resolver).
+- Só no `solver`:
+  - `--solver gurobi|cplex|highs`: escolhe o solver de PLIM. Sem a opção, usa o
+    primeiro disponível nessa ordem. `./build/solver --listar-solvers` mostra os
+    que foram compilados;
+  - `--presolve on|off|padrao`: liga, desliga ou deixa na configuração padrão o
+    pré-processamento do solver de PLIM. Sem a opção, o HiGHS roda com o presolve
+    **desligado** e Gurobi/CPLEX com a configuração padrão deles (ver abaixo);
+  - `--threads n` e `--verbose` (log do solver de PLIM);
+  - `--restricao6-original`: usa a restrição (6) do artigo original, só para
+    demonstrar que ela é inviável; não use para resolver.
 
 ```sh
 ./build/min_max instances/
 ./build/ri      instances/
-./build/solver  instances/ --time-limit 600
+./build/solver  instances/ --time-limit 600 --solver highs
 ```
 
 ## Formato de instância
@@ -139,11 +161,14 @@ Um JSON por instância em `results/<método>/<chave>.json`, por exemplo
 - `tempo_cpu_s`: tempo de CPU do processo (soma das threads; no `solver` inclui a
   montagem do modelo). `tempo_parede_s`: tempo de relógio.
 - Só no `solver`:
+  - `solver`: solver de PLIM usado, com a versão (ex.: `"highs 1.16.0"`);
+  - `presolve`: configuração de presolve usada (`on`, `off` ou `padrao`);
   - `status`: `optimal`, `time_limit`, `infeasible` ou `other`;
   - `otimo_provado`: `true` só com `status = optimal`;
   - `limite_inferior`: melhor limite inferior (arredondado para cima, pois o
     objetivo é inteiro);
-  - `gap_mip`: gap relativo do MIP.
+  - `gap_mip`: gap relativo, calculado da mesma forma para todos os solvers:
+    `(relocacoes - limite_inferior) / relocacoes`.
 
   Com `status = time_limit`, `relocacoes` é só a melhor solução encontrada (ou
   `null` se não houver nenhuma) e **não** é tratada como ótimo, nem aqui nem no HV.
@@ -179,9 +204,17 @@ na instância de id 1 de alguns arquivos:
 O modelo cresce rápido: nas instâncias maiores do conjunto B é provável que o
 `solver` pare no limite de tempo sem provar otimalidade (`status = time_limit`).
 
-A formulação é montada numa estrutura neutra e copiada para o Gurobi por
-`carregarNoGurobi()`. Isso permite exportar exatamente as mesmas restrições em
-formato LP (`tests/modelo_lp`) e conferi-las com outro solver.
+Presolve do HiGHS: com o presolve ligado (padrão do HiGHS), nas instâncias maiores
+do conjunto B o HiGHS gastava o limite de tempo inteiro no pré-processamento, sem
+resolver nem a relaxação linear (0 iterações de LP, 0 nós) e, portanto, sem
+solução. Exemplo, `brp_W7_H8_N24` id 5 com limite de 120 s: presolve ligado, sem
+solução após 132 s, todos no presolve; presolve desligado, ótimo provado (14) em
+19 s, com um único nó. Por isso o `solver` desliga o presolve do HiGHS por padrão.
+
+A formulação é montada numa estrutura neutra (variáveis e linhas), e
+`src/backends.hpp` apenas a copia para o solver escolhido. Por isso Gurobi, CPLEX e
+HiGHS resolvem exatamente o mesmo modelo, e `tests/modelo_lp` pode exportá-lo em
+formato LP.
 
 ## Heurísticas
 
@@ -255,15 +288,15 @@ O script:
 3. roda `min_max` e `ri`, relê os resultados gravados e confere que toda sequência é
    executável (respeita `H`, só move topos, só move blocos acima do alvo) e que
    nenhuma fica abaixo do ótimo;
-4. roda o `solver`, confere as sequências e compara com a busca em largura,
-   encerrando com erro se algum valor divergir;
+4. roda o `solver` com cada solver de PLIM compilado (Gurobi, CPLEX, HiGHS), confere
+   as sequências e compara com a busca em largura, encerrando com erro se algum
+   valor divergir;
 5. confere que o modelo com a restrição (6) original é inviável na referência.
 
-Sem o executável `solver` (Gurobi não encontrado), os passos 4 e 5 não são feitos
-com o Gurobi e o script diz isso no resumo. Nesse caso, se o pacote opcional
-`highspy` estiver instalado (`pip install highspy`), a formulação é exportada em LP
-e resolvida com o HiGHS, com as mesmas comparações. Isso valida as restrições de
-`brp2_model.hpp`, mas não `solver.cpp` nem `carregarNoGurobi()`.
+O resumo final diz com quais solvers a validação foi feita e quais adaptadores
+ficaram sem teste. Sem o executável `solver`, os passos 4 e 5 não são feitos e o
+script diz isso; nesse caso, se o pacote opcional `highspy` estiver instalado, a
+formulação exportada em LP é conferida com ele.
 
 Ferramentas individuais:
 
@@ -275,17 +308,18 @@ Ferramentas individuais:
 
 ### Estado da validação neste repositório
 
-Na máquina em que o projeto foi criado **o Gurobi não estava instalado** (havia só
-um arquivo de licença). Portanto:
+Na máquina em que o projeto foi desenvolvido há apenas o HiGHS (o Gurobi está sem
+licença e o CPLEX não está instalado). Portanto:
 
 - busca em largura, heurísticas e verificador: executados e aprovados;
-- formulação de `brp2_model.hpp`: conferida com HiGHS contra a busca em largura em
-  361 instâncias (340 aleatórias, 20 reais de até 4×4 e a referência), sem
-  divergência; referência = 6; versão original da (6) inviável na referência;
-- heurísticas nas 170 instâncias de `instances/`: 340 sequências gravadas e
-  reconferidas pelo verificador;
-- `solver.cpp` e `carregarNoGurobi()`: **não compilados contra o Gurobi nem
-  executados**. Rode `python3 tests/validar.py` depois de compilar com o Gurobi.
+- `solver` com **HiGHS**: igual à busca em largura nas 61 instâncias do
+  `validar.py` (40 aleatórias, 20 reais de até 4×4 e a referência); referência = 6;
+  versão original da (6) inviável na referência;
+- adaptadores do **CPLEX** e do **Gurobi** em `src/backends.hpp`: escritos, mas
+  **não compilados contra as bibliotecas reais nem executados**. A formulação é a
+  mesma; o que falta testar neles é só a ligação. Depois de instalar um deles,
+  recompile e rode `python3 tests/validar.py`, que testa todos os solvers
+  compilados.
 
 ## Referências
 

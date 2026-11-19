@@ -1,0 +1,23 @@
+{
+  "instancia": "brp_W7_H8_N49_id08",
+  "arquivo": "brp_W7_H8_N49.json",
+  "id": 8,
+  "metodo": "solver",
+  "W": 7,
+  "H": 8,
+  "N": 49,
+  "relocacoes": null,
+  "num_movimentos": null,
+  "retiradas": null,
+  "operacoes_totais": null,
+  "tempo_cpu_s": 192.214197000,
+  "tempo_parede_s": 121.778957500,
+  "solver": "highs 1.16.0",
+  "presolve": "off",
+  "status": "time_limit",
+  "otimo_provado": false,
+  "limite_inferior": 0.000000,
+  "gap_mip": null,
+  "sequencia": [],
+  "movimentos": []
+}

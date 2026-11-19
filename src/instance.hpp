@@ -491,6 +491,8 @@ struct Resultado {
 
     // Campos gravados apenas pelo método exato.
     bool doSolver = false;
+    std::string solver;            // solver de PLIM usado, com a versão (ex.: "highs 1.16.0")
+    std::string presolve;          // presolve usado: on | off | padrao
     std::string status;            // optimal | time_limit | infeasible | other
     bool otimoProvado = false;
     bool temLimite = false;
@@ -543,6 +545,8 @@ inline void gravarResultado(const Resultado& r, const fs::path& arquivo) {
     std::snprintf(buf, sizeof buf, "%.9f", r.tempoParede);
     f << "  \"tempo_parede_s\": " << buf << ",\n";
     if (r.doSolver) {
+        f << "  \"solver\": \"" << escaparJson(r.solver) << "\",\n";
+        f << "  \"presolve\": \"" << escaparJson(r.presolve) << "\",\n";
         f << "  \"status\": \"" << escaparJson(r.status) << "\",\n";
         f << "  \"otimo_provado\": " << (r.otimoProvado ? "true" : "false") << ",\n";
         if (r.temLimite) {
@@ -601,9 +605,13 @@ struct OpcoesCli {
     fs::path entrada;
     fs::path saida;
     double limiteTempo = -1.0;        // segundos; < 0 = padrão do executável
+    int id = 0;                       // > 0: processa só a instância com esse "id" de cada arquivo
     bool restricao6Original = false;  // só o solver: usa a (6) do artigo original (demonstração)
-    bool verboso = false;             // só o solver: mostra o log do Gurobi
-    int threads = 0;                  // só o solver: 0 = padrão do Gurobi
+    bool verboso = false;             // só o solver: mostra o log do solver de PLIM
+    int threads = 0;                  // só o solver: 0 = padrão do solver de PLIM
+    std::string solver;               // só o solver: gurobi | cplex | highs ("" = primeiro disponível)
+    std::string presolve;             // só o solver: on | off | padrao ("" = padrão do executável)
+    bool listarSolvers = false;       // só o solver: lista os solvers compilados e sai
 };
 
 inline fs::path pastaResultadosPadrao(const std::string& metodo) {
@@ -616,8 +624,11 @@ inline fs::path pastaResultadosPadrao(const std::string& metodo) {
 
 inline OpcoesCli lerArgumentos(int argc, char** argv, const std::string& metodo, bool ehSolver) {
     auto uso = [&]() {
-        std::string u = std::string("uso: ") + argv[0] + " <instância.json | pasta> [--time-limit s] [--out pasta]";
-        if (ehSolver) u += " [--threads n] [--verbose] [--restricao6-original]";
+        std::string u = std::string("uso: ") + argv[0] + " <instância.json | pasta> [--time-limit s] [--out pasta] [--id n]";
+        if (ehSolver)
+            u += " [--solver gurobi|cplex|highs] [--presolve on|off|padrao] [--threads n] [--verbose]"
+                 " [--restricao6-original]"
+                 "\n     " + std::string(argv[0]) + " --listar-solvers";
         return u;
     };
     OpcoesCli op;
@@ -633,8 +644,18 @@ inline OpcoesCli lerArgumentos(int argc, char** argv, const std::string& metodo,
             op.limiteTempo = std::stod(proximo());
         } else if (arg == "--out") {
             op.saida = proximo();
+        } else if (arg == "--id") {
+            op.id = std::stoi(proximo());
         } else if (ehSolver && arg == "--threads") {
             op.threads = std::stoi(proximo());
+        } else if (ehSolver && arg == "--solver") {
+            op.solver = proximo();
+        } else if (ehSolver && arg == "--presolve") {
+            op.presolve = proximo();
+            if (op.presolve != "on" && op.presolve != "off" && op.presolve != "padrao")
+                throw std::runtime_error("--presolve aceita on, off ou padrao\n" + uso());
+        } else if (ehSolver && arg == "--listar-solvers") {
+            op.listarSolvers = true;
         } else if (ehSolver && arg == "--verbose") {
             op.verboso = true;
         } else if (ehSolver && arg == "--restricao6-original") {
@@ -648,7 +669,7 @@ inline OpcoesCli lerArgumentos(int argc, char** argv, const std::string& metodo,
             throw std::runtime_error("argumento inesperado: " + arg + "\n" + uso());
         }
     }
-    if (!temEntrada) throw std::runtime_error(uso());
+    if (!temEntrada && !op.listarSolvers) throw std::runtime_error(uso());
     return op;
 }
 
@@ -719,6 +740,7 @@ int mainHeuristica(int argc, char** argv, const std::string& metodo, Escolha esc
             continue;
         }
         for (const Instancia& inst : instancias) {
+            if (op.id > 0 && inst.id != op.id) continue;
             try {
                 double p0 = tempoParedeSeg(), c0 = tempoCpuSeg();
                 std::vector<Movimento> movs = heuristicaConstrutiva(inst, escolher);
