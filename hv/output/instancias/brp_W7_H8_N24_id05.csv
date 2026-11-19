@@ -1,3 +1,5 @@
-instancia,arquivo,id,classe,W,H,N,modo,metodo,status,relocacoes,tempo_cpu_s,norm_relocacoes,norm_tempo_cpu_s,ideal_relocacoes,ideal_tempo_cpu_s,ref_relocacoes,ref_tempo_cpu_s,otimo,hv,gap_hv,gap_relocacoes
-brp_W7_H8_N24_id05,brp_W7_H8_N24.json,5,7x8,7,8,24,hv_max,min_max,,14,6e-06,0,0.769231,14,4e-06,18.7,6.6e-06,,0.230769,,
-brp_W7_H8_N24_id05,brp_W7_H8_N24.json,5,7x8,7,8,24,hv_max,ri,,17,4e-06,0.638298,0,14,4e-06,18.7,6.6e-06,,0.361702,,
+instancia,arquivo,id,classe,W,H,N,modo,metodo,status,relocacoes,tempo_cpu_s,norm_relocacoes,norm_tempo_cpu_s,ideal_relocacoes,ideal_tempo_cpu_s,ref_relocacoes,ref_tempo_cpu_s,otimo,fonte_otimo,hv,gap_hv,gap_relocacoes
+brp_W7_H8_N24_id05,brp_W7_H8_N24.json,5,7x8,7,8,24,hv_min,astar,optimal,14,0,0,0,14,0,18.7,27.1746,14,solver,1,-10,0
+brp_W7_H8_N24_id05,brp_W7_H8_N24.json,5,7x8,7,8,24,hv_min,min_max,,14,6e-06,0,2.20795e-07,14,0,18.7,27.1746,14,solver,1,-10,0
+brp_W7_H8_N24_id05,brp_W7_H8_N24.json,5,7x8,7,8,24,hv_min,ri,,17,4e-06,0.638298,1.47197e-07,14,0,18.7,27.1746,14,solver,0.361702,-2.97872,0.214286
+brp_W7_H8_N24_id05,brp_W7_H8_N24.json,5,7x8,7,8,24,hv_min,solver,optimal,14,24.7041,0,0.909091,14,0,18.7,27.1746,14,solver,0.0909091,0,0

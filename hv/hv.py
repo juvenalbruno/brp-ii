@@ -10,14 +10,17 @@ referência, e o HV do método é a área (volume) dominada entre o ponto e a re
 Modos (por instância):
   hv_max  não exige o exato. ref_m = FATOR_REFERENCIA x pior valor observado entre os
           métodos disponíveis; ideal_m = melhor valor observado.
-  hv_min  exige resultado do exato com status ótimo. O ideal em OBJETIVO_DO_EXATO
-          (relocações) é o valor ótimo do exato; nos demais objetivos o ideal é o
-          melhor observado; a referência segue a regra do hv_max.
+  hv_min  exige resultado de um método exato (METODOS_EXATOS: solver ou astar) com
+          status ótimo. O ideal em OBJETIVO_DO_EXATO (relocações) é o valor ótimo;
+          nos demais objetivos o ideal é o melhor observado; a referência segue a
+          regra do hv_max.
   auto    (padrão) hv_min se a instância tem exato ótimo, senão hv_max.
 
 Quando há exato ótimo, calcula também:
   gap de HV         = (HV_exato - HV_heurística) / HV_exato
   gap de relocações = (heurística - ótimo) / ótimo
+O "exato" desses gaps é o primeiro de METODOS_EXATOS com status ótimo na instância
+(coluna fonte_otimo). Se dois exatos provam ótimos diferentes, o script para com erro.
 
 Saídas em hv/output/:
   instancias/<instância>.csv   uma linha por método
@@ -27,7 +30,7 @@ Saídas em hv/output/:
   resumo.txt                   o mesmo resumo em texto
 
 Uso: python3 hv/hv.py [--results results] [--output hv/output]
-                      [--modo auto|hv_max|hv_min] [--metodos solver,min_max,ri]
+                      [--modo auto|hv_max|hv_min] [--metodos solver,astar,min_max,ri]
 Só biblioteca padrão.
 """
 import argparse
@@ -47,7 +50,8 @@ OBJETIVOS = [
 ]
 OBJETIVO_DO_EXATO = "relocacoes"  # objetivo cujo ideal vem do exato no modo hv_min
 FATOR_REFERENCIA = 1.1            # referência = fator x pior valor observado
-METODO_EXATO = "solver"           # nome da subpasta de results/ com o método exato
+# Subpastas de results/ com métodos exatos, em ordem de preferência como fonte do ótimo.
+METODOS_EXATOS = ["solver", "astar"]
 STATUS_OTIMO = "optimal"
 # ----------------------------------------------------------------------------
 
@@ -59,7 +63,7 @@ def carregar(pasta_results, metodos):
     dados = {}
     for pasta in sorted(p for p in pasta_results.iterdir() if p.is_dir()):
         metodo = pasta.name
-        if metodos and metodo not in metodos and metodo != METODO_EXATO:
+        if metodos and metodo not in metodos and metodo not in METODOS_EXATOS:
             continue
         for arq in sorted(pasta.glob("*.json")):
             try:
@@ -84,10 +88,13 @@ def normalizar(valor, ideal, ref):
 
 def avaliar_instancia(inst, regs, modo_pedido, metodos):
     """Devolve a lista de linhas (dicionários) da instância, uma por método."""
-    exato = regs.get(METODO_EXATO)
-    exato_otimo = (exato is not None and exato.get("status") == STATUS_OTIMO
-                   and isinstance(exato.get("relocacoes"), int))
-    otimo = exato["relocacoes"] if exato_otimo else None
+    otimos = {m: regs[m]["relocacoes"] for m in METODOS_EXATOS
+              if m in regs and regs[m].get("status") == STATUS_OTIMO and isinstance(regs[m].get("relocacoes"), int)}
+    if len(set(otimos.values())) > 1:
+        sys.exit("ERRO: %s: métodos exatos provam ótimos diferentes: %s" % (inst, otimos))
+    fonte = next((m for m in METODOS_EXATOS if m in otimos), None)
+    exato_otimo = fonte is not None
+    otimo = otimos[fonte] if exato_otimo else None
 
     # Métodos que entram como pontos (o exato pode ter sido filtrado por --metodos;
     # mesmo assim o valor ótimo dele continua servindo de ideal no hv_min).
@@ -123,7 +130,7 @@ def avaliar_instancia(inst, regs, modo_pedido, metodos):
     um = next(iter(regs.values()))
     base = {"instancia": inst, "arquivo": um.get("arquivo", ""), "id": um.get("id") or "",
             "classe": "%dx%d" % (um["W"], um["H"]), "W": um["W"], "H": um["H"], "N": um["N"],
-            "modo": modo, "otimo": otimo if otimo is not None else ""}
+            "modo": modo, "otimo": otimo if otimo is not None else "", "fonte_otimo": fonte or ""}
     linhas = []
     for m in sorted(pontos):
         r = pontos[m]
@@ -137,8 +144,8 @@ def avaliar_instancia(inst, regs, modo_pedido, metodos):
         linha["gap_hv"] = ""
         linha["gap_relocacoes"] = ""
         if exato_otimo:
-            if METODO_EXATO in hv and hv[METODO_EXATO] > 0:
-                linha["gap_hv"] = (hv[METODO_EXATO] - hv[m]) / hv[METODO_EXATO]
+            if fonte in hv and hv[fonte] > 0:
+                linha["gap_hv"] = (hv[fonte] - hv[m]) / hv[fonte]
             rel = r.get("relocacoes")
             if isinstance(rel, int):
                 if otimo > 0:
@@ -196,7 +203,7 @@ def main():
     colunas = ["instancia", "arquivo", "id", "classe", "W", "H", "N", "modo", "metodo", "status"]
     colunas += OBJETIVOS
     colunas += ["norm_" + o for o in OBJETIVOS] + ["ideal_" + o for o in OBJETIVOS] + ["ref_" + o for o in OBJETIVOS]
-    colunas += ["otimo", "hv", "gap_hv", "gap_relocacoes"]
+    colunas += ["otimo", "fonte_otimo", "hv", "gap_hv", "gap_relocacoes"]
 
     todas = []
     for inst in sorted(dados):

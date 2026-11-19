@@ -26,6 +26,10 @@ endif()
 add_executable(min_max src/min_max.cpp)
 add_executable(ri src/ri.cpp)
 
+# ------------------------------------------------------------ exato por busca
+# A* (busca informada); também não depende de solver de PLIM.
+add_executable(astar src/astar.cpp)
+
 # --------------------------------------------------------------------- testes
 # Também não dependem do Gurobi.
 add_executable(bfs tests/bfs.cpp)

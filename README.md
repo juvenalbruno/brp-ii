@@ -1,11 +1,12 @@
 # BRP-II — Blocks Relocation Problem restrito (suposição A1)
 
-Três métodos em C++17 para o BRP restrito, sem chegada de blocos:
+Quatro métodos em C++17 para o BRP restrito, sem chegada de blocos:
 
 | Executável | Método | Arquivo |
 |---|---|---|
 | `solver` | exato, formulação BRP-II corrigida, resolvida com Gurobi, CPLEX ou HiGHS | `src/solver.cpp` + `src/brp2_model.hpp` + `src/backends.hpp` |
-| `min_max` | heurística Min-Max (Caserta et al.) | `src/min_max.cpp` |
+| `astar` | exato, busca informada A* (slides de IC0024, módulo 2) | `src/astar.cpp` |
+| `min_max` | heurística Min-Max (Caserta et al.) | `src/min_max.cpp` + `src/regras.hpp` |
 | `ri` | heurística Reshuffle Index (Murty et al.) | `src/ri.cpp` |
 
 Problema: baia com `W` pilhas de altura máxima `H` e `N` blocos com prioridades
@@ -21,19 +22,21 @@ src/
   brp2_model.hpp   toda a formulação BRP-II corrigida (único lugar com restrições)
   instance.hpp     JSON, instância, resultado, verificador de sequências, laço das heurísticas
   backends.hpp     ligação da formulação com Gurobi, CPLEX e HiGHS (sem restrições)
-  solver.cpp       main do exato
+  solver.cpp       main do exato por PLIM
+  astar.cpp        main do exato por busca A*
+  regras.hpp       regra Min-Max (usada pela heurística e como limite superior do A*)
   min_max.cpp      main da heurística Min-Max
   ri.cpp           main da heurística RI
 instances/         instâncias (JSON)
-results/{solver,min_max,ri}/   um JSON por instância
+results/{solver,astar,min_max,ri}/   um JSON por instância
 hv/hv.py           hipervolume e gaps
 tests/             busca em largura, exportação LP, verificador e validar.py
 ```
 
 ## Compilação
 
-Requisitos: CMake >= 3.16 e um compilador C++17. As heurísticas e os testes não
-dependem de nenhum solver. O alvo `solver` é compilado com **todos os solvers de PLIM
+Requisitos: CMake >= 3.16 e um compilador C++17. As heurísticas, o A* e os testes
+não dependem de nenhum solver. O alvo `solver` é compilado com **todos os solvers de PLIM
 que o CMake encontrar**:
 
 | Solver | Como o CMake encontra | Licença |
@@ -59,6 +62,15 @@ cmake --build build -j
 O CMake informa quais solvers entraram (`Alvo solver com: ...`). Se nenhum for
 encontrado, avisa e pula o alvo `solver`. Os executáveis ficam em `build/`.
 
+No Windows, com o g++ do MSYS2 (MinGW-w64) e o CMake/Ninja que vêm com o Visual
+Studio Build Tools (os executáveis ficam como `build/<nome>.exe`, e a pasta
+`C:\msys64\mingw64\bin` precisa estar no `PATH` para achar as DLLs do g++):
+
+```sh
+cmake -S . -B build -G Ninja -DCMAKE_CXX_COMPILER=g++
+cmake --build build -j
+```
+
 ## Uso
 
 ```sh
@@ -68,8 +80,13 @@ encontrado, avisa e pula o alvo `solver`. Os executáveis ficam em `build/`.
 - Passando uma pasta, todos os `.json` dela são processados.
 - `--id n`: processa só a instância de `id` n de cada arquivo.
 - `--out`: pasta de saída. Padrão: `results/<método>/` na raiz do projeto.
-- `--time-limit`: limite em segundos por instância para o `solver` (padrão 3600). As
-  heurísticas aceitam a opção por uniformidade, mas não a usam.
+- `--time-limit`: limite em segundos por instância para o `solver` e o `astar`
+  (padrão 3600). As heurísticas aceitam a opção por uniformidade, mas não a usam.
+- Só no `astar`:
+  - `--sem-ub`: desliga a poda pelo limite superior da Min-Max (A* puro);
+  - `--max-nos n`: número máximo de estados distintos guardados (padrão 5 000 000,
+    cerca de 1 GB). Ao atingir esse limite ou o de tempo, o A* para com
+    `status = node_limit` ou `time_limit`.
 - Só no `solver`:
   - `--solver gurobi|cplex|highs`: escolhe o solver de PLIM. Sem a opção, usa o
     primeiro disponível nessa ordem. `./build/solver --listar-solvers` mostra os
@@ -84,6 +101,7 @@ encontrado, avisa e pula o alvo `solver`. Os executáveis ficam em `build/`.
 ```sh
 ./build/min_max instances/
 ./build/ri      instances/
+./build/astar   instances/ --time-limit 600
 ./build/solver  instances/ --time-limit 600 --solver highs
 ```
 
@@ -172,12 +190,24 @@ Um JSON por instância em `results/<método>/<chave>.json`, por exemplo
 
   Com `status = time_limit`, `relocacoes` é só a melhor solução encontrada (ou
   `null` se não houver nenhuma) e **não** é tratada como ótimo, nem aqui nem no HV.
+- Só no `astar`:
+  - `status`, `otimo_provado` e `limite_inferior`, com o mesmo significado do
+    `solver` (`status` pode ser `optimal`, `time_limit`, `node_limit` ou
+    `infeasible`), e `gap` (mesma fórmula do `gap_mip`). Sem ótimo provado,
+    `relocacoes` é a solução da Min-Max (o UB) e `limite_inferior` é o menor `f` da
+    fila;
+  - `usa_ub` e `limite_superior_inicial` (relocações da Min-Max, ou `null` com
+    `--sem-ub`);
+  - `h_raiz`: `h` do estado inicial;
+  - `nos_gerados` (inclui a raiz), `nos_expandidos` (inclui o nó objetivo),
+    `podados_repetidos`, `podados_ub` e `nos_atualizados` (estados reencontrados por
+    um caminho mais barato antes de serem expandidos).
 
 Antes de gravar, todo executável confere que a própria sequência é executável. Para
 reconferir os arquivos já gravados:
 
 ```sh
-./build/verificar_resultados instances results/min_max results/ri results/solver
+./build/verificar_resultados instances results/min_max results/ri results/solver results/astar
 ```
 
 ## Formulação (`src/brp2_model.hpp`)
@@ -229,6 +259,62 @@ pilha não cheia e diferente da origem; depois retira `t`. Sem retrocesso.
   Escolhe o menor RI. Empate: menor altura e depois menor índice. O desempate está
   isolado na função `desempateRI()` de `src/ri.cpp`.
 
+## A* (`src/astar.cpp`)
+
+Implementação do A* descrito nos slides do módulo 2 de IC0024 (aula "Algoritmo A*"),
+adaptada ao BRP restrito (A1) deste repositório.
+
+- **Estados**: cada nó é uma "fotografia do pátio". Como em `tests/bfs.cpp`, sob A1 a
+  retirada do alvo é forçada assim que ele chega ao topo, então ela é feita na hora,
+  com custo 0, e o estado guardado já está sem os blocos retirados. Cada aresta é
+  uma relocação (custo 1): o bloco do topo da pilha do alvo vai para outra pilha.
+- **f(n) = g(n) + h(n)**: `g` = relocações feitas; `h` = número de blocos "mal
+  posicionados" (bloqueadores), isto é, blocos acima de algum bloco de número menor
+  na mesma pilha. Cada um terá de sair pelo menos uma vez, logo `h` é admissível.
+  Também é consistente (uma relocação muda `h` em no máximo 1), por isso um estado
+  expandido nunca precisa ser reaberto.
+- **Fila de prioridade** por `f`; empate em `f`: maior `g` (critério do slide 24);
+  persistindo o empate, ordem de inserção. O teste de objetivo é feito ao retirar o
+  nó da fila, o que garante a otimalidade.
+- **Podas** (slide 21): (1) estados repetidos: um estado já alcançado com `g` menor
+  ou igual é descartado; se for alcançado com `g` menor antes de ser expandido, o nó
+  é atualizado; (2) infactibilidade: não há movimento para pilha cheia (`H`);
+  (3) limite superior: a Min-Max roda antes da busca e todo nó com `f >= UB` é
+  descartado (o exercício proposto no slide 35). Se a fila esvaziar sem achar
+  solução melhor, a solução da Min-Max é ótima. `--sem-ub` desliga essa poda.
+
+Conferência com o exercício do slide 24 (`tests/referencia.json`, pilhas
+`876 | 2 | 1345`, `H = 4`): com `--sem-ub`, o A* encontra 6 relocações, gera 17 nós
+e expande 14, exatamente como no slide e pelo mesmo caminho (`5→P1`, `4→P2`,
+`3→P2`, `3→P3`, `4→P3`, `4→P2`). Com o UB da Min-Max (que também dá 6), expande 12.
+O `validar.py` confere esses números.
+
+Resultados em `results/astar/` (`./build/astar instances --time-limit 600`, limite
+padrão de 5 000 000 de nós, Ryzen 5 5600G). Em todas as instâncias sem ótimo, o A*
+parou pelo limite de nós em 10 a 15 s, nunca pelo de tempo. "Ótimos novos" são
+instâncias em que o A* provou o ótimo e o `solver` não:
+
+| Arquivo | Ótimos A* | Ótimos `solver` | Ótimos novos | CPU total do A* (s) |
+|---|---|---|---|---|
+| W3–W5 e `W7_H5_N16` (6 arquivos) | 60/60 | 60/60 | 0 | 0,0 |
+| `brp_W7_H5_N23` | 10/10 | 10/10 | 0 | 0,1 |
+| `brp_W7_H5_N31` | 10/10 | 9/10 | 1 | 0,2 |
+| `brp_W7_H6_N18` | 10/10 | 10/10 | 0 | 0,0 |
+| `brp_W7_H6_N28` | 10/10 | 9/10 | 1 | 2,4 |
+| `brp_W7_H6_N37` | 9/10 | 3/10 | 6 | 20,6 |
+| `brp_W7_H7_N22` | 10/10 | 10/10 | 0 | 0,0 |
+| `brp_W7_H7_N32` | 10/10 | 2/10 | 8 | 9,0 |
+| `brp_W7_H7_N43` | 2/10 | 0/10 | 2 | 97,1 |
+| `brp_W7_H8_N24` | 10/10 | 9/10 | 1 | 0,0 |
+| `brp_W7_H8_N37` | 6/10 | 0/10 | 6 | 48,9 |
+| `brp_W7_H8_N49` | 3/10 | 0/10 | 3 | 98,6 |
+| **Total** | **150/170** | **122/170** | **28** | **276,9** |
+
+Nas 122 instâncias em que os dois provaram o ótimo, os valores são iguais. Nas
+demais, o ótimo do A* nunca fica abaixo do limite inferior do `solver` nem acima
+da solução dele. Com os 150 ótimos, o gap médio de relocações é de 3,9% para a
+Min-Max e de 16,9% para a RI (`hv/output/resumo.txt`, linha GERAL).
+
 ## Hipervolume (`hv/hv.py`)
 
 Python 3, só biblioteca padrão.
@@ -250,6 +336,11 @@ Por instância, cada método é um ponto. Cada objetivo é normalizado por
   métodos disponíveis; `ideal` = melhor valor observado.
 - **hv_min** (exige exato com `status = optimal`): o ideal em relocações é o ótimo
   do exato; a referência segue a regra do hv_max.
+
+Métodos exatos (`METODOS_EXATOS` no topo do script): `solver` e `astar`, nessa
+ordem de preferência. O ótimo de uma instância vem do primeiro deles com
+`status = optimal` (coluna `fonte_otimo`), e é contra o HV desse método que se
+calcula o `gap_hv`. Se os dois provarem ótimos diferentes, o script para com erro.
 - **auto** (padrão): hv_min nas instâncias com exato ótimo, hv_max nas demais.
 
 Com exato ótimo, calcula também `gap_hv = (HV_exato - HV_heur) / HV_exato` e
@@ -288,13 +379,17 @@ O script:
 3. roda `min_max` e `ri`, relê os resultados gravados e confere que toda sequência é
    executável (respeita `H`, só move topos, só move blocos acima do alvo) e que
    nenhuma fica abaixo do ótimo;
-4. roda o `solver` com cada solver de PLIM compilado (Gurobi, CPLEX, HiGHS), confere
+4. roda o `astar` com e sem o UB da Min-Max (`--sem-ub`), confere as sequências e
+   exige que o valor seja **igual** ao da busca em largura, com `status = optimal`,
+   em todas as instâncias; na referência, exige também os 17 nós gerados e 14
+   expandidos do slide 24 (A* sem UB);
+5. roda o `solver` com cada solver de PLIM compilado (Gurobi, CPLEX, HiGHS), confere
    as sequências e compara com a busca em largura, encerrando com erro se algum
    valor divergir;
-5. confere que o modelo com a restrição (6) original é inviável na referência.
+6. confere que o modelo com a restrição (6) original é inviável na referência.
 
 O resumo final diz com quais solvers a validação foi feita e quais adaptadores
-ficaram sem teste. Sem o executável `solver`, os passos 4 e 5 não são feitos e o
+ficaram sem teste. Sem o executável `solver`, os passos 5 e 6 não são feitos e o
 script diz isso; nesse caso, se o pacote opcional `highspy` estiver instalado, a
 formulação exportada em LP é conferida com ele.
 
@@ -312,6 +407,11 @@ Na máquina em que o projeto foi desenvolvido há apenas o HiGHS (o Gurobi está
 licença e o CPLEX não está instalado). Portanto:
 
 - busca em largura, heurísticas e verificador: executados e aprovados;
+- `astar` (com e sem UB): igual à busca em largura nas 61 instâncias do
+  `validar.py` e em mais 663 aleatórias (`--n 200` com as sementes 1, 2 e 3);
+  referência = 6, com os 17 nós gerados e 14 expandidos do slide 24. Testado no
+  Windows (g++ 15 do MSYS2), onde não há solver de PLIM, então os passos 5 e 6 não
+  rodaram lá;
 - `solver` com **HiGHS**: igual à busca em largura nas 61 instâncias do
   `validar.py` (40 aleatórias, 20 reais de até 4×4 e a referência); referência = 6;
   versão original da (6) inviável na referência;
